@@ -26,7 +26,6 @@
       max-width: 90%;
       margin: 20px auto;
       text-align: left;
-      overflow-x: auto;
     }
   </style>
 </head>
@@ -39,44 +38,32 @@
   <script>
     // Helper: get query params
     function getParam(name) {
-      const val = new URLSearchParams(window.location.search).get(name);
-      console.log(`Param ${name}:`, val);
-      return val;
+      return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Robust base64 decode function
+    // Decode URL-safe base64 string with padding fix
     function safeBase64Decode(str) {
       try {
         console.log('Raw input string:', str);
 
-        // Remove whitespace/newlines
-        let cleaned = str.replace(/\s+/g, '');
-        console.log('Whitespace removed:', cleaned);
+        // Replace URL-safe base64 chars to standard base64 chars
+        let cleaned = str.replace(/-/g, '+').replace(/_/g, '/');
 
-        // Decode URI components repeatedly until stable
-        let prev;
-        do {
-          prev = cleaned;
-          cleaned = decodeURIComponent(cleaned);
-        } while (cleaned !== prev);
-        console.log('After decodeURIComponent:', cleaned);
-
-        // Replace URL-safe Base64 chars with standard Base64 chars
-        cleaned = cleaned.replace(/-/g, '+').replace(/_/g, '/');
-        console.log('After URL-safe char replacement:', cleaned);
-
-        // Add padding '=' to make length multiple of 4
+        // Add padding '=' if missing
         while (cleaned.length % 4 !== 0) {
           cleaned += '=';
         }
-        console.log('After padding:', cleaned);
 
-        // Decode base64 string
+        console.log('After URL-safe replacement and padding:', cleaned);
+
+        // Decode base64 to raw string
         const decoded = atob(cleaned);
-        console.log('Base64 decoded string:', decoded);
+
+        console.log('Decoded string:', decoded);
+
         return decoded;
       } catch (e) {
-        console.error('Base64 decode error:', e);
+        console.error('Decode error:', e);
         return null;
       }
     }
@@ -116,7 +103,6 @@
       // No valid params
       document.getElementById('message').innerText = 'Missing parameters. Please check your link.';
       document.getElementById('spinner').style.display = 'none';
-      console.warn('No valid parameters found in URL');
     }
   </script>
 </body>
