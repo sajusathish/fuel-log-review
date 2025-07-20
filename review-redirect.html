@@ -41,11 +41,12 @@
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Base64 decode Unicode safely
+    // Base64 decode Unicode safely, with URL decoding before base64 decode
     function base64DecodeUnicode(str) {
       try {
+        const base64Str = decodeURIComponent(str);  // <-- decode URL encoding first
         return decodeURIComponent(
-          Array.prototype.map.call(atob(str), function(c) {
+          Array.prototype.map.call(atob(base64Str), function(c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
           }).join('')
         );
