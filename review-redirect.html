@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Submitting...</title>
+  <title>Processing...</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding-top: 100px;
+      padding-top: 50px;
       background: #f8f8f8;
     }
     .spinner {
@@ -22,24 +22,74 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    #table-container {
+      max-width: 90%;
+      margin: 20px auto;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
-  <h2>Submitting your response...</h2>
-  <div class="spinner"></div>
+
+  <h2 id="message">Loading...</h2>
+  <div id="spinner" class="spinner"></div>
+  <div id="table-container" style="display:none;"></div>
+
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const formId = params.get("formId");
-    const status = params.get("status");
-    const reviewer = params.get("reviewer");
+    // Helper: get query params
+    function getParam(name) {
+      return new URLSearchParams(window.location.search).get(name);
+    }
 
-    const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${status}&Reviewer=${reviewer}&FormIds=${formId}`;
-    const accURL = `https://acc.autodesk.com/build/forms/projects/f94d12c8-f951-45a5-b1c3-8419a37750fb/field-reports/904f2c31-f161-4f91-a20a-774e0df6d933/reports/${formId}`;
+    // Base64 decode Unicode safely
+    function base64DecodeUnicode(str) {
+      try {
+        return decodeURIComponent(
+          Array.prototype.map.call(atob(str), function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join('')
+        );
+      } catch(e) {
+        return null;
+      }
+    }
 
-    fetch(webhookURL)
-      .catch(err => console.error("Webhook failed:", err))
-      .finally(() => window.location.href = accURL);
+    const data = getParam('data');
+    const formId = getParam('formId');
+    const status = getParam('status');
+    const reviewer = getParam('reviewer');
+
+    if (data) {
+      // Show table from base64 HTML data
+      const decodedHtml = base64DecodeUnicode(data);
+      if (decodedHtml) {
+        document.getElementById('message').innerText = 'Daily Fuel Log Review';
+        document.getElementById('spinner').style.display = 'none';
+        const container = document.getElementById('table-container');
+        container.style.display = 'block';
+        container.innerHTML = decodedHtml;
+      } else {
+        document.getElementById('message').innerText = 'Error decoding table data.';
+        document.getElementById('spinner').style.display = 'none';
+      }
+    }
+    else if (formId && status && reviewer) {
+      // Show submitting spinner & send webhook, then redirect to ACC form
+      document.getElementById('message').innerText = 'Submitting your response...';
+
+      const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formId)}`;
+
+      const accURL = `https://acc.autodesk.com/build/forms/projects/f94d12c8-f951-45a5-b1c3-8419a37750fb/field-reports/904f2c31-f161-4f91-a20a-774e0df6d933/reports/${encodeURIComponent(formId)}`;
+
+      fetch(webhookURL)
+        .catch(err => console.error('Webhook failed:', err))
+        .finally(() => window.location.href = accURL);
+    }
+    else {
+      // No valid params
+      document.getElementById('message').innerText = 'Missing parameters. Please check your link.';
+      document.getElementById('spinner').style.display = 'none';
+    }
   </script>
 </body>
 </html>
-
