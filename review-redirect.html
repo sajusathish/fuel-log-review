@@ -1,170 +1,145 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Daily Fuel Log Review</title>
+  <title>Daily Fuel Log Review - <span id="todayDate"></span></title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 30px;
-      background-color: #f4f4f4;
+      margin: 40px;
+      background: #f4f6f8;
     }
+
     h1 {
-      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
-      background-color: #fff;
+      background: white;
     }
+
     th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: left;
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
     }
+
     th {
-      background-color: #007bff;
+      background-color: #2c3e50;
       color: white;
     }
+
     tr:nth-child(even) {
-      background-color: #f9f9f9;
+      background-color: #f2f2f2;
     }
+
     .buttons {
       margin-top: 20px;
+      text-align: center;
     }
+
     button {
       padding: 10px 20px;
-      margin-right: 15px;
+      margin: 0 10px;
       font-size: 16px;
-      border: none;
-      border-radius: 6px;
       cursor: pointer;
+      border: none;
+      border-radius: 4px;
     }
-    #approve {
-      background-color: #28a745;
+
+    .approve {
+      background-color: #2ecc71;
       color: white;
     }
-    #reject {
-      background-color: #dc3545;
+
+    .reject {
+      background-color: #e74c3c;
       color: white;
     }
   </style>
 </head>
 <body>
-  <h1 id="page-title">Daily Fuel Log Review</h1>
-  <div id="table-container">Loading...</div>
 
-  <div class="buttons" id="action-buttons" style="display: none;">
-    <button id="approve">✅ Approve</button>
-    <button id="reject">❌ Reject</button>
+  <h1>Daily Fuel Log Review - <span id="todayDate"></span></h1>
+
+  <div id="tableContainer"></div>
+
+  <div class="buttons">
+    <button class="approve" id="approveBtn">Approve</button>
+    <button class="reject" id="rejectBtn">Reject</button>
   </div>
 
   <script>
-    function base64DecodeUnicode(str) {
+    // Helper to decode Base64 URL-safe
+    function base64UrlDecode(input) {
       try {
-        return decodeURIComponent(
-          atob(str.replace(/-/g, '+').replace(/_/g, '/'))
-            .split('')
-            .map(function(c) {
-              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            })
-            .join('')
-        );
+        const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = atob(base64);
+        return decodeURIComponent(escape(decoded));
       } catch (e) {
-        console.error("Decode error:", e);
+        console.error("Error decoding base64:", e);
         return null;
       }
     }
 
-    function getQueryParam(name) {
-      const url = new URL(window.location.href);
-      return url.searchParams.get(name);
+    // Get query parameters
+    const params = new URLSearchParams(window.location.search);
+    const dataEncoded = params.get('data');
+    const reviewer = params.get('reviewer') || 'unknown@domain.com';
+
+    // Display today's date
+    document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
+
+    // Decode and insert table HTML
+    const tableHTML = base64UrlDecode(dataEncoded);
+    if (tableHTML) {
+      document.getElementById("tableContainer").innerHTML = tableHTML;
+    } else {
+      document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
     }
 
-    function extractSelectedFormIds() {
-      const checkboxes = document.querySelectorAll("input[name='selectForm']:checked");
-      return Array.from(checkboxes).map(cb => cb.value);
+    // Get selected form IDs from checkboxes
+    function getSelectedFormIds() {
+      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
+      const ids = [];
+      checkboxes.forEach(cb => {
+        ids.push(cb.value);
+      });
+      return ids.join(",");
     }
 
+    // Handle approve/reject
     function handleDecision(status) {
-      const formIds = extractSelectedFormIds();
-      const reviewer = getQueryParam("reviewer");
-
-      if (!formIds.length) {
-        alert("Please select at least one row to proceed.");
+      const formIds = getSelectedFormIds();
+      if (!formIds) {
+        alert("Please select at least one form.");
         return;
       }
 
-      const url = new URL("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response");
-      url.searchParams.append("status", status);
-      url.searchParams.append("Reviewer", reviewer);
-      url.searchParams.append("Form_Ids", formIds.join(","));
+      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
 
-      fetch(url.toString(), {
-        method: "GET"
+      console.log("Sending request to:", webhookUrl);
+
+      fetch(webhookUrl, {
+        method: 'GET'
       })
       .then(response => {
-        if (!response.ok) throw new Error("Network response was not ok");
-        alert(`Successfully ${status.toLowerCase()} the selected form(s).`);
+        if (!response.ok) {
+          throw new Error("Network response was not OK");
+        }
+        alert(`${status} request sent successfully!`);
       })
       .catch(error => {
-        alert("Error submitting response: " + error);
+        console.error("Error submitting response:", error);
+        alert(`Error submitting response: ${error.message}`);
       });
     }
 
-    document.getElementById("approve").onclick = () => handleDecision("Approved");
-    document.getElementById("reject").onclick = () => handleDecision("Rejected");
-
-    (function init() {
-      const reviewer = getQueryParam("reviewer");
-      const encodedData = getQueryParam("data");
-
-      // Update title with today's date
-      const today = new Date();
-      const formatted = today.toISOString().split("T")[0];
-      document.getElementById("page-title").innerText += ` – ${formatted}`;
-
-      if (!encodedData) {
-        document.getElementById("table-container").innerText = "No table data found in URL.";
-        return;
-      }
-
-      const decoded = base64DecodeUnicode(encodedData);
-      if (!decoded) {
-        document.getElementById("table-container").innerText = "Error decoding table data.";
-        return;
-      }
-
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(decoded, "text/html");
-      const table = doc.querySelector("table");
-
-      if (!table) {
-        document.getElementById("table-container").innerText = "Invalid table format.";
-        return;
-      }
-
-      const rows = table.querySelectorAll("tbody tr");
-      rows.forEach(row => {
-        const cell = row.insertCell(0);
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.name = "selectForm";
-        input.value = row.children[1]?.innerText.trim(); // Form ID
-        cell.appendChild(input);
-      });
-
-      const headerRow = table.querySelector("thead tr");
-      const th = document.createElement("th");
-      th.innerText = "Select";
-      headerRow.insertBefore(th, headerRow.firstChild);
-
-      document.getElementById("table-container").innerHTML = "";
-      document.getElementById("table-container").appendChild(table);
-      document.getElementById("action-buttons").style.display = "block";
-    })();
+    document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
+    document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
   </script>
+
 </body>
 </html>
