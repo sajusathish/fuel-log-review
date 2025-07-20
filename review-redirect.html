@@ -58,6 +58,13 @@
       background-color: #e74c3c;
       color: white;
     }
+
+    #statusText {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -70,6 +77,8 @@
     <button class="approve" id="approveBtn">Approve</button>
     <button class="reject" id="rejectBtn">Reject</button>
   </div>
+
+  <div id="statusText"></div>
 
   <script>
     // Helper to decode Base64 URL-safe
@@ -100,7 +109,7 @@
       document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
     }
 
-    // Get selected form IDs from checkboxes
+    // Get selected form IDs from checkboxes already present in HTML table
     function getSelectedFormIds() {
       const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
       const ids = [];
@@ -112,6 +121,7 @@
 
     // Handle approve/reject
     function handleDecision(status) {
+      const statusText = document.getElementById("statusText");
       const formIds = getSelectedFormIds();
       if (!formIds) {
         alert("Please select at least one form.");
@@ -120,20 +130,20 @@
 
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
 
-      console.log("Sending request to:", webhookUrl);
+      statusText.textContent = `Submitting ${status}...`;
 
       fetch(webhookUrl, {
         method: 'GET'
       })
       .then(response => {
         if (!response.ok) {
-          throw new Error("Network response was not OK");
+          throw new Error("Webhook call failed");
         }
-        alert(`${status} request sent successfully!`);
+        statusText.textContent = `✅ ${status} request sent successfully!`;
       })
       .catch(error => {
         console.error("Error submitting response:", error);
-        alert(`Error submitting response: ${error.message}`);
+        statusText.textContent = `❌ Error: ${error.message}`;
       });
     }
 
