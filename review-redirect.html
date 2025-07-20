@@ -41,16 +41,33 @@
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Base64 decode Unicode safely, with URL decoding before base64 decode
+    // Base64 decode Unicode safely, with debug logs
     function base64DecodeUnicode(str) {
       try {
-        const base64Str = decodeURIComponent(str);  // <-- decode URL encoding first
-        return decodeURIComponent(
+        console.log("Raw input string:", str);
+
+        // Decode URL encoding first
+        const decodedURIComponent = decodeURIComponent(str);
+        console.log("After decodeURIComponent:", decodedURIComponent);
+
+        // Replace URL-safe base64 chars with standard ones
+        const base64Str = decodedURIComponent
+          .replace(/-/g, '+')
+          .replace(/_/g, '/')
+          .replace(/\s/g, ''); // remove whitespace/newlines
+        console.log("Base64 string for atob():", base64Str);
+
+        // Decode base64 to bytes, then decode URI component to get original string
+        const decoded = decodeURIComponent(
           Array.prototype.map.call(atob(base64Str), function(c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
           }).join('')
         );
+
+        console.log("Final decoded HTML:", decoded);
+        return decoded;
       } catch(e) {
+        console.error("Decode error:", e);
         return null;
       }
     }
