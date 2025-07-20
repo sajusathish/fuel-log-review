@@ -40,28 +40,32 @@
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Base64 decode Unicode safely, trimming spaces/newlines
     function base64DecodeUnicode(str) {
       try {
         console.log("Raw input string:", str);
 
-        // Remove ALL whitespace (spaces, tabs, newlines)
-        const cleanedStr = str.replace(/\s+/g, '');
-        console.log("Cleaned base64 string (whitespace removed):", cleanedStr);
+        let cleaned = str.replace(/\s+/g, '');
 
-        // URL decode (in case of % encoding)
-        const decodedURIComponent = decodeURIComponent(cleanedStr);
-        console.log("After decodeURIComponent:", decodedURIComponent);
+        let prev;
+        do {
+          prev = cleaned;
+          cleaned = decodeURIComponent(cleaned);
+        } while (cleaned !== prev);
 
-        // Replace URL-safe base64 chars with standard ones
-        const base64Str = decodedURIComponent
-          .replace(/-/g, '+')
-          .replace(/_/g, '/');
-        console.log("Base64 string for atob():", base64Str);
+        console.log("After full decodeURIComponent:", cleaned);
 
-        // Decode base64
+        cleaned = cleaned.replace(/-/g, '+').replace(/_/g, '/');
+
+        while (cleaned.length % 4 !== 0) {
+          cleaned += '=';
+        }
+
+        console.log("Cleaned base64 string for atob():", cleaned);
+
+        const binary = atob(cleaned);
+
         const decoded = decodeURIComponent(
-          Array.prototype.map.call(atob(base64Str), function(c) {
+          Array.prototype.map.call(binary, c => {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
           }).join('')
         );
