@@ -128,9 +128,9 @@
         return;
       }
 
-      const webhookUrl = https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)};
+      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
 
-      statusText.textContent = Submitting ${status}...;
+      statusText.textContent = `Submitting ${status}...`;
 
       fetch(webhookUrl, {
         method: 'GET'
@@ -139,11 +139,11 @@
         if (!response.ok) {
           throw new Error("Webhook call failed");
         }
-        statusText.textContent = ✅ ${status} request sent successfully!;
+        statusText.textContent = `✅ ${status} request sent successfully!`;
       })
       .catch(error => {
         console.error("Error submitting response:", error);
-        statusText.textContent = ❌ Error: ${error.message};
+        statusText.textContent = `❌ Error: ${error.message}`;
       });
     }
 
