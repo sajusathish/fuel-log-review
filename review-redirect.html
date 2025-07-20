@@ -1,247 +1,193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Processing...</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f4f8;
-      color: #333;
-      margin: 0;
-      padding: 30px;
-      text-align: center;
-    }
-    h2 {
-      font-weight: 700;
-      font-size: 1.8rem;
-      margin-bottom: 15px;
-      color: #007bff;
-    }
-    #spinner {
-      border: 6px solid #ddd;
-      border-top: 6px solid #007bff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      margin: 20px auto;
-      animation: spin 1s linear infinite;
-      display: none;
-    }
-    @keyframes spin {
-      0%   { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    #table-container {
-      background: white;
-      max-width: 90%;
-      margin: 20px auto;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgb(0 0 0 / 0.1);
-      text-align: left;
-      overflow-x: auto;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 14px;
-    }
-    table, th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-    }
-    th {
-      background-color: #007bff;
-      color: white;
-      font-weight: 600;
-    }
-    td input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-    }
-    .buttons {
-      margin-top: 20px;
-      text-align: center;
-    }
-    .btn {
-      cursor: pointer;
-      padding: 12px 25px;
-      margin: 0 15px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: 5px;
-      color: white;
-      transition: background-color 0.3s ease;
-      user-select: none;
-    }
-    .btn-approve {
-      background-color: #28a745;
-    }
-    .btn-approve:hover {
-      background-color: #218838;
-    }
-    .btn-reject {
-      background-color: #dc3545;
-    }
-    .btn-reject:hover {
-      background-color: #c82333;
-    }
-    #message {
-      font-size: 1.2rem;
-      margin-top: 10px;
-      min-height: 1.5em;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Daily Fuel Log Review</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f9fafb;
+    margin: 20px;
+    color: #333;
+  }
+  h1 {
+    color: #2c3e50;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 20px;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  th {
+    background-color: #007bff;
+    color: white;
+  }
+  tr:nth-child(even){
+    background-color: #f2f2f2;
+  }
+  button {
+    padding: 12px 24px;
+    margin-right: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: white;
+  }
+  #approveBtn {
+    background-color: #28a745;
+  }
+  #rejectBtn {
+    background-color: #dc3545;
+  }
+  #message {
+    margin-top: 15px;
+    font-weight: bold;
+  }
+  #spinner {
+    display: none;
+    vertical-align: middle;
+    margin-left: 10px;
+  }
+  .reviewer-info {
+    margin-top: 5px;
+    font-style: italic;
+  }
+</style>
 </head>
 <body>
 
-  <h2 id="title">Loading Daily Fuel Log Review...</h2>
-  <div id="spinner"></div>
-  <div id="message"></div>
-  <div id="table-container" style="display:none;"></div>
+<h1 id="pageTitle">Daily Fuel Log Review</h1>
+<div class="reviewer-info" id="reviewerInfo"></div>
 
-  <script>
-    function getQueryParam(name) {
-      return new URLSearchParams(window.location.search).get(name);
+<div id="tableContainer">Loading table...</div>
+
+<div>
+  <button id="approveBtn">Approve</button>
+  <button id="rejectBtn">Reject</button>
+  <img id="spinner" src="https://i.imgur.com/llF5iyg.gif" alt="Loading..." width="24" height="24" />
+</div>
+
+<div id="message"></div>
+
+<script>
+// Get URL parameters
+function getUrlParams() {
+  const params = {};
+  const queryString = window.location.search.substring(1);
+  const vars = queryString.split('&');
+  for (let v of vars) {
+    let pair = v.split('=');
+    params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
+  }
+  return params;
+}
+
+// Decode URL-safe base64 string (replace - with + and _ with /)
+function base64UrlDecode(input) {
+  input = input.replace(/-/g, '+').replace(/_/g, '/');
+  // Pad with '='
+  while (input.length % 4) {
+    input += '=';
+  }
+  try {
+    return decodeURIComponent(escape(window.atob(input)));
+  } catch (e) {
+    console.error('Base64 decode error:', e);
+    return null;
+  }
+}
+
+const params = getUrlParams();
+const reviewer = params['reviewer'] || 'Unknown Reviewer';
+const encodedData = params['data'] || '';
+
+const reviewerInfoEl = document.getElementById('reviewerInfo');
+reviewerInfoEl.textContent = `Reviewer: ${reviewer}`;
+
+// Append current date suffix to title
+const pageTitle = document.getElementById('pageTitle');
+const today = new Date();
+const options = { year: 'numeric', month: 'short', day: 'numeric' };
+pageTitle.textContent = `Daily Fuel Log Review - ${today.toLocaleDateString(undefined, options)}`;
+
+const tableContainer = document.getElementById('tableContainer');
+const messageEl = document.getElementById('message');
+const spinnerEl = document.getElementById('spinner');
+
+let decodedHtml = base64UrlDecode(encodedData);
+if (!decodedHtml) {
+  tableContainer.innerHTML = '<p style="color:red;">Error decoding table data.</p>';
+} else {
+  tableContainer.innerHTML = decodedHtml;
+}
+
+// Helper: get selected form IDs from checked checkboxes in the table
+function getSelectedFormIds() {
+  const checkboxes = document.querySelectorAll("input[name='selectForm']:checked");
+  const ids = [];
+  checkboxes.forEach(cb => ids.push(cb.value));
+  return ids;
+}
+
+async function submitDecision(status) {
+  const selectedFormIds = getSelectedFormIds();
+  if(selectedFormIds.length === 0) {
+    alert('Please select at least one form before submitting.');
+    return;
+  }
+
+  messageEl.textContent = `Submitting your response: ${status}...`;
+  spinnerEl.style.display = 'inline-block';
+
+  const webhookURL = 'https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response';
+
+  const payload = {
+    Status: status.toLowerCase(),
+    FormIds: selectedFormIds.join(','),
+    Reviewer: reviewer
+  };
+
+  console.log('Submitting to webhook:', webhookURL);
+  console.log('Payload:', payload);
+
+  try {
+    const resp = await fetch(webhookURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('Fetch response:', resp);
+
+    if(!resp.ok) {
+      const text = await resp.text();
+      console.error(`Error response text: ${text}`);
+      throw new Error(`HTTP ${resp.status} - ${text}`);
     }
 
-    function base64Decode(str) {
-      try {
-        let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-        while (base64.length % 4) base64 += '=';
-        return atob(base64);
-      } catch (e) {
-        console.warn('Standard base64 decode failed, trying atob directly...', e);
-        return atob(str);
-      }
-    }
+    messageEl.textContent = `Response "${status}" submitted successfully. Thank you, ${reviewer}.`;
+  } catch (error) {
+    console.error('Webhook submission error:', error);
+    messageEl.textContent = `Error submitting response: ${error.message}`;
+  } finally {
+    spinnerEl.style.display = 'none';
+  }
+}
 
-    function base64UrlDecodeToString(base64UrlString) {
-      try {
-        let binaryString = base64Decode(base64UrlString);
-        let utf8String = decodeURIComponent(
-          binaryString.split('').map(c =>
-            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-          ).join('')
-        );
-        return utf8String;
-      } catch (e) {
-        console.error("Decode error:", e);
-        return null;
-      }
-    }
+// Event listeners
+document.getElementById('approveBtn').addEventListener('click', () => submitDecision('approved'));
+document.getElementById('rejectBtn').addEventListener('click', () => submitDecision('rejected'));
 
-    function setTitleWithDate() {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
-      document.getElementById('title').innerText = `Daily Fuel Log Review - ${formattedDate}`;
-    }
-
-    (function(){
-      setTitleWithDate();
-
-      const rawData = getQueryParam('data');
-      const reviewer = getQueryParam('reviewer') || 'unknown';
-      const messageEl = document.getElementById('message');
-      const spinnerEl = document.getElementById('spinner');
-      const container = document.getElementById('table-container');
-
-      console.log('Raw URL data param:', rawData);
-      if (!rawData) {
-        messageEl.innerText = 'Missing data parameter.';
-        return;
-      }
-
-      let decodedURIComponentData;
-      try {
-        decodedURIComponentData = decodeURIComponent(rawData);
-        console.log('After decodeURIComponent:', decodedURIComponentData);
-      } catch (e) {
-        console.error('decodeURIComponent error:', e);
-        decodedURIComponentData = rawData;
-      }
-
-      const decodedHtml = base64UrlDecodeToString(decodedURIComponentData);
-
-      if (!decodedHtml) {
-        messageEl.innerText = 'Error decoding table data.';
-        return;
-      }
-
-      container.style.display = 'block';
-      container.innerHTML = decodedHtml;
-
-      // Add Approve and Reject buttons below the table
-      const buttonsDiv = document.createElement('div');
-      buttonsDiv.className = 'buttons';
-
-      const approveBtn = document.createElement('button');
-      approveBtn.className = 'btn btn-approve';
-      approveBtn.textContent = 'Approve';
-
-      const rejectBtn = document.createElement('button');
-      rejectBtn.className = 'btn btn-reject';
-      rejectBtn.textContent = 'Reject';
-
-      buttonsDiv.appendChild(approveBtn);
-      buttonsDiv.appendChild(rejectBtn);
-      container.appendChild(buttonsDiv);
-
-      messageEl.innerText = `Reviewer: ${reviewer}`;
-
-      function getSelectedFormIds() {
-        const checkboxes = container.querySelectorAll("input[name='selectForm']:checked");
-        const ids = [];
-        checkboxes.forEach(cb => {
-          if(cb.value) ids.push(cb.value);
-        });
-        return ids;
-      }
-
-      async function submitDecision(status) {
-        const selectedFormIds = getSelectedFormIds();
-        if(selectedFormIds.length === 0) {
-          alert('Please select at least one form before submitting.');
-          return;
-        }
-
-        messageEl.innerText = `Submitting your response: ${status}...`;
-        spinnerEl.style.display = 'block';
-
-        const webhookURL = 'https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response';
-
-        const payload = {
-          Status: status.toLowerCase(),
-          FormIds: selectedFormIds.join(','),
-          Reviewer: reviewer
-        };
-
-        try {
-          const resp = await fetch(webhookURL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          messageEl.innerText = `Response "${status}" submitted successfully. Thank you, ${reviewer}.`;
-        } catch (error) {
-          console.error('Webhook submission error:', error);
-          messageEl.innerText = 'Error submitting response. Please try again.';
-        } finally {
-          spinnerEl.style.display = 'none';
-        }
-      }
-
-      approveBtn.onclick = () => submitDecision('approved');
-      rejectBtn.onclick = () => submitDecision('rejected');
-    })();
-  </script>
+</script>
 
 </body>
 </html>
