@@ -26,6 +26,7 @@
       height: 40px;
       margin: 20px auto;
       animation: spin 1s linear infinite;
+      display: none;
     }
     @keyframes spin {
       0%   { transform: rotate(0deg); }
@@ -91,6 +92,7 @@
     #message {
       font-size: 1.2rem;
       margin-top: 10px;
+      min-height: 1.5em;
     }
   </style>
 </head>
@@ -102,12 +104,10 @@
   <div id="table-container" style="display:none;"></div>
 
   <script>
-    // Helper to get URL query params
     function getQueryParam(name) {
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Decode URL-safe Base64 to string (with UTF-8 decoding)
     function base64Decode(str) {
       try {
         let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -115,7 +115,7 @@
         return atob(base64);
       } catch (e) {
         console.warn('Standard base64 decode failed, trying atob directly...', e);
-        return atob(str); // fallback
+        return atob(str);
       }
     }
 
@@ -143,7 +143,6 @@
       document.getElementById('title').innerText = `Daily Fuel Log Review - ${formattedDate}`;
     }
 
-    // Main
     (function(){
       setTitleWithDate();
 
@@ -155,7 +154,6 @@
 
       console.log('Raw URL data param:', rawData);
       if (!rawData) {
-        spinnerEl.style.display = 'none';
         messageEl.innerText = 'Missing data parameter.';
         return;
       }
@@ -169,41 +167,27 @@
         decodedURIComponentData = rawData;
       }
 
-      // Validate base64-url pattern
-      const base64urlRegex = /^[A-Za-z0-9\-_]+=*$/;
-      if (!base64urlRegex.test(decodedURIComponentData)) {
-        console.warn('Warning: data param does not look like valid URL-safe base64');
-      }
-
       const decodedHtml = base64UrlDecodeToString(decodedURIComponentData);
 
       if (!decodedHtml) {
-        spinnerEl.style.display = 'none';
         messageEl.innerText = 'Error decoding table data.';
         return;
       }
 
-      spinnerEl.style.display = 'none';
       container.style.display = 'block';
       container.innerHTML = decodedHtml;
 
-      // Create Approve and Reject buttons
+      // Add Approve and Reject buttons below the table
       const buttonsDiv = document.createElement('div');
       buttonsDiv.className = 'buttons';
 
       const approveBtn = document.createElement('button');
       approveBtn.className = 'btn btn-approve';
       approveBtn.textContent = 'Approve';
-      approveBtn.onclick = () => {
-        handleDecision('Approved', reviewer);
-      };
 
       const rejectBtn = document.createElement('button');
       rejectBtn.className = 'btn btn-reject';
       rejectBtn.textContent = 'Reject';
-      rejectBtn.onclick = () => {
-        handleDecision('Rejected', reviewer);
-      };
 
       buttonsDiv.appendChild(approveBtn);
       buttonsDiv.appendChild(rejectBtn);
@@ -211,29 +195,51 @@
 
       messageEl.innerText = `Reviewer: ${reviewer}`;
 
-      // Handle approve/reject click
-      function handleDecision(status, reviewerEmail) {
+      function getSelectedFormIds() {
+        const checkboxes = container.querySelectorAll("input[name='selectForm']:checked");
+        const ids = [];
+        checkboxes.forEach(cb => {
+          if(cb.value) ids.push(cb.value);
+        });
+        return ids;
+      }
+
+      async function submitDecision(status) {
+        const selectedFormIds = getSelectedFormIds();
+        if(selectedFormIds.length === 0) {
+          alert('Please select at least one form before submitting.');
+          return;
+        }
+
         messageEl.innerText = `Submitting your response: ${status}...`;
         spinnerEl.style.display = 'block';
 
-        // Example webhook URL (change accordingly)
-        const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewerEmail)}`;
+        const webhookURL = 'https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response';
 
-        fetch(webhookURL, { method: 'POST' })
-          .then(() => {
-            messageEl.innerText = `Response "${status}" submitted successfully. Redirecting...`;
-            // Redirect or do something else here if needed
-            setTimeout(() => {
-              spinnerEl.style.display = 'none';
-              messageEl.innerText = `Thank you, ${reviewerEmail}. You may close this page.`;
-            }, 2000);
-          })
-          .catch(err => {
-            spinnerEl.style.display = 'none';
-            messageEl.innerText = 'Error submitting response. Please try again.';
-            console.error('Webhook submission error:', err);
+        const payload = {
+          Status: status.toLowerCase(),
+          FormIds: selectedFormIds.join(','),
+          Reviewer: reviewer
+        };
+
+        try {
+          const resp = await fetch(webhookURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
           });
+          if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          messageEl.innerText = `Response "${status}" submitted successfully. Thank you, ${reviewer}.`;
+        } catch (error) {
+          console.error('Webhook submission error:', error);
+          messageEl.innerText = 'Error submitting response. Please try again.';
+        } finally {
+          spinnerEl.style.display = 'none';
+        }
       }
+
+      approveBtn.onclick = () => submitDecision('approved');
+      rejectBtn.onclick = () => submitDecision('rejected');
     })();
   </script>
 
