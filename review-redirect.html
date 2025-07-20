@@ -7,146 +7,129 @@
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #f9fafb;
+    background: #f5f7fa;
     margin: 20px;
-    color: #333;
+    padding: 0;
   }
   h1 {
     color: #2c3e50;
   }
   table {
-    width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    margin-bottom: 20px;
+    width: 100%;
+    margin-top: 15px;
+    background: #fff;
   }
   th, td {
     border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
+    padding: 10px;
+    text-align: center;
   }
   th {
     background-color: #007bff;
     color: white;
   }
-  tr:nth-child(even){
-    background-color: #f2f2f2;
+  tbody tr:hover {
+    background-color: #f1f9ff;
   }
   button {
-    padding: 12px 24px;
-    margin-right: 10px;
-    font-size: 16px;
-    font-weight: bold;
+    margin: 15px 10px 0 0;
+    padding: 12px 25px;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
+    font-weight: bold;
     cursor: pointer;
-    color: white;
+    font-size: 16px;
   }
   #approveBtn {
     background-color: #28a745;
+    color: white;
   }
   #rejectBtn {
     background-color: #dc3545;
+    color: white;
   }
   #message {
-    margin-top: 15px;
+    margin-top: 20px;
     font-weight: bold;
-  }
-  #spinner {
-    display: none;
-    vertical-align: middle;
-    margin-left: 10px;
-  }
-  .reviewer-info {
-    margin-top: 5px;
-    font-style: italic;
   }
 </style>
 </head>
 <body>
 
-<h1 id="pageTitle">Daily Fuel Log Review</h1>
-<div class="reviewer-info" id="reviewerInfo"></div>
+<h1 id="page-title">Daily Fuel Log Review</h1>
 
-<div id="tableContainer">Loading table...</div>
+<div id="table-container">Loading table data...</div>
 
-<div>
-  <button id="approveBtn">Approve</button>
-  <button id="rejectBtn">Reject</button>
-  <img id="spinner" src="https://i.imgur.com/llF5iyg.gif" alt="Loading..." width="24" height="24" />
-</div>
+<button id="approveBtn">✅ Approve</button>
+<button id="rejectBtn">❌ Reject</button>
 
 <div id="message"></div>
 
 <script>
-// Get URL parameters
-function getUrlParams() {
-  const params = {};
-  const queryString = window.location.search.substring(1);
-  const vars = queryString.split('&');
-  for (let v of vars) {
-    let pair = v.split('=');
-    params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
-  }
-  return params;
-}
-
-// Decode URL-safe base64 string (replace - with + and _ with /)
+// Helper to decode URL-safe base64 (reverses - _ to + /)
 function base64UrlDecode(input) {
   input = input.replace(/-/g, '+').replace(/_/g, '/');
-  // Pad with '='
+  // Pad with '=' chars to length multiple of 4
   while (input.length % 4) {
     input += '=';
   }
+  return atob(input);
+}
+
+// Decode Unicode Base64 string properly
+function base64DecodeUnicode(str) {
+  // atob gives binary string, convert to UTF-8 string
   try {
-    return decodeURIComponent(escape(window.atob(input)));
+    const binary = base64UrlDecode(str);
+    const decoded = decodeURIComponent(
+      binary.split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return decoded;
   } catch (e) {
-    console.error('Base64 decode error:', e);
+    console.error('Decode error:', e);
     return null;
   }
 }
 
-const params = getUrlParams();
-const reviewer = params['reviewer'] || 'Unknown Reviewer';
-const encodedData = params['data'] || '';
-
-const reviewerInfoEl = document.getElementById('reviewerInfo');
-reviewerInfoEl.textContent = `Reviewer: ${reviewer}`;
-
-// Append current date suffix to title
-const pageTitle = document.getElementById('pageTitle');
-const today = new Date();
-const options = { year: 'numeric', month: 'short', day: 'numeric' };
-pageTitle.textContent = `Daily Fuel Log Review - ${today.toLocaleDateString(undefined, options)}`;
-
-const tableContainer = document.getElementById('tableContainer');
-const messageEl = document.getElementById('message');
-const spinnerEl = document.getElementById('spinner');
-
-let decodedHtml = base64UrlDecode(encodedData);
-if (!decodedHtml) {
-  tableContainer.innerHTML = '<p style="color:red;">Error decoding table data.</p>';
-} else {
-  tableContainer.innerHTML = decodedHtml;
+// Get URL parameter
+function getUrlParam(name) {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(name);
 }
 
-// Helper: get selected form IDs from checked checkboxes in the table
+const reviewer = getUrlParam('reviewer') || 'Unknown Reviewer';
+
+// Set page title with current date suffix (e.g., July 20, 2025)
+function setTitleWithDate() {
+  const now = new Date();
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  const dateStr = now.toLocaleDateString(undefined, options);
+  document.getElementById('page-title').textContent = `Daily Fuel Log Review — ${dateStr}`;
+}
+
+// Render table HTML inside container
+function renderTable(html) {
+  const container = document.getElementById('table-container');
+  container.innerHTML = html;
+}
+
+// Extract selected form IDs from table checkboxes
 function getSelectedFormIds() {
   const checkboxes = document.querySelectorAll("input[name='selectForm']:checked");
-  const ids = [];
-  checkboxes.forEach(cb => ids.push(cb.value));
-  return ids;
+  return Array.from(checkboxes).map(cb => cb.value);
 }
 
+// Send decision to Workato webhook
 async function submitDecision(status) {
   const selectedFormIds = getSelectedFormIds();
-  if(selectedFormIds.length === 0) {
-    alert('Please select at least one form before submitting.');
+
+  if (selectedFormIds.length === 0) {
+    alert('Please select at least one row before submitting.');
     return;
   }
-
-  messageEl.textContent = `Submitting your response: ${status}...`;
-  spinnerEl.style.display = 'inline-block';
 
   const webhookURL = 'https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response';
 
@@ -156,7 +139,7 @@ async function submitDecision(status) {
     Reviewer: reviewer
   };
 
-  console.log('Submitting to webhook:', webhookURL);
+  console.log('Sending POST to:', webhookURL);
   console.log('Payload:', payload);
 
   try {
@@ -166,27 +149,43 @@ async function submitDecision(status) {
       body: JSON.stringify(payload)
     });
 
-    console.log('Fetch response:', resp);
-
-    if(!resp.ok) {
-      const text = await resp.text();
-      console.error(`Error response text: ${text}`);
-      throw new Error(`HTTP ${resp.status} - ${text}`);
+    if (resp.ok) {
+      document.getElementById('message').textContent = `Successfully sent ${status} response.`;
+    } else {
+      document.getElementById('message').textContent = `Error sending response: ${resp.status} ${resp.statusText}`;
+      console.error('Response error:', await resp.text());
     }
-
-    messageEl.textContent = `Response "${status}" submitted successfully. Thank you, ${reviewer}.`;
-  } catch (error) {
-    console.error('Webhook submission error:', error);
-    messageEl.textContent = `Error submitting response: ${error.message}`;
-  } finally {
-    spinnerEl.style.display = 'none';
+  } catch (err) {
+    document.getElementById('message').textContent = `Network error: ${err.message}`;
+    console.error('Fetch error:', err);
   }
 }
 
-// Event listeners
-document.getElementById('approveBtn').addEventListener('click', () => submitDecision('approved'));
-document.getElementById('rejectBtn').addEventListener('click', () => submitDecision('rejected'));
+// Initialize page
+function init() {
+  setTitleWithDate();
 
+  const dataEncoded = getUrlParam('data');
+  if (!dataEncoded) {
+    document.getElementById('table-container').textContent = 'No data provided.';
+    return;
+  }
+
+  const decodedHTML = base64DecodeUnicode(dataEncoded);
+
+  if (!decodedHTML) {
+    document.getElementById('table-container').textContent = 'Error decoding table data.';
+    return;
+  }
+
+  renderTable(decodedHTML);
+
+  // Add event listeners to buttons
+  document.getElementById('approveBtn').onclick = () => submitDecision('Approved');
+  document.getElementById('rejectBtn').onclick = () => submitDecision('Rejected');
+}
+
+window.onload = init;
 </script>
 
 </body>
