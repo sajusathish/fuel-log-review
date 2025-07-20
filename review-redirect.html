@@ -36,28 +36,30 @@
   <div id="table-container" style="display:none;"></div>
 
   <script>
-    // Helper: get query params
     function getParam(name) {
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Base64 decode Unicode safely, with debug logs
+    // Base64 decode Unicode safely, trimming spaces/newlines
     function base64DecodeUnicode(str) {
       try {
         console.log("Raw input string:", str);
 
-        // Decode URL encoding first
-        const decodedURIComponent = decodeURIComponent(str);
+        // Remove ALL whitespace (spaces, tabs, newlines)
+        const cleanedStr = str.replace(/\s+/g, '');
+        console.log("Cleaned base64 string (whitespace removed):", cleanedStr);
+
+        // URL decode (in case of % encoding)
+        const decodedURIComponent = decodeURIComponent(cleanedStr);
         console.log("After decodeURIComponent:", decodedURIComponent);
 
         // Replace URL-safe base64 chars with standard ones
         const base64Str = decodedURIComponent
           .replace(/-/g, '+')
-          .replace(/_/g, '/')
-          .replace(/\s/g, ''); // remove whitespace/newlines
+          .replace(/_/g, '/');
         console.log("Base64 string for atob():", base64Str);
 
-        // Decode base64 to bytes, then decode URI component to get original string
+        // Decode base64
         const decoded = decodeURIComponent(
           Array.prototype.map.call(atob(base64Str), function(c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -78,7 +80,6 @@
     const reviewer = getParam('reviewer');
 
     if (data) {
-      // Show table from base64 HTML data
       const decodedHtml = base64DecodeUnicode(data);
       if (decodedHtml) {
         document.getElementById('message').innerText = 'Daily Fuel Log Review';
@@ -92,7 +93,6 @@
       }
     }
     else if (formId && status && reviewer) {
-      // Show submitting spinner & send webhook, then redirect to ACC form
       document.getElementById('message').innerText = 'Submitting your response...';
 
       const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formId)}`;
@@ -104,7 +104,6 @@
         .finally(() => window.location.href = accURL);
     }
     else {
-      // No valid params
       document.getElementById('message').innerText = 'Missing parameters. Please check your link.';
       document.getElementById('spinner').style.display = 'none';
     }
