@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submitting...</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding-top: 100px;
+      background: #f8f8f8;
+    }
+    .spinner {
+      border: 6px solid #ccc;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h2>Submitting your response...</h2>
+  <div class="spinner"></div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const formId = params.get("formId");
+    const status = params.get("status");
+    const reviewer = params.get("reviewer");
+
+    const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${status}&Reviewer=${reviewer}&FormIds=${formId}`;
+    const accURL = `https://acc.autodesk.com/build/forms/projects/f94d12c8-f951-45a5-b1c3-8419a37750fb/field-reports/904f2c31-f161-4f91-a20a-774e0df6d933/reports/${formId}`;
+
+    fetch(webhookURL)
+      .catch(err => console.error("Webhook failed:", err))
+      .finally(() => window.location.href = accURL);
+  </script>
+</body>
+</html>
 
