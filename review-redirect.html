@@ -109,7 +109,7 @@
       document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
     }
 
-    // Get selected form IDs from checkboxes
+    // Get selected form IDs from checkboxes already present in HTML table
     function getSelectedFormIds() {
       const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
       const ids = [];
@@ -119,37 +119,7 @@
       return ids.join(",");
     }
 
-    // Poll Workato for final status
-    function pollForFinalStatus(reviewer, formIds, retries = 10, interval = 3000) {
-      const statusText = document.getElementById("statusText");
-      const pollWebhookUrlBase = "https://webhooks.workato.com/webhooks/rest/your-status-webhook-id/fuel-log-status"; // <-- Replace this!
-      const pollUrl = `${pollWebhookUrlBase}?Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
-
-      let attempts = 0;
-      statusText.textContent += " ⏳ Waiting for final status...";
-
-      const intervalId = setInterval(() => {
-        attempts++;
-        fetch(pollUrl)
-          .then(res => res.json())
-          .then(data => {
-            if (data?.status) {
-              clearInterval(intervalId);
-              statusText.textContent = `✅ Final Status: ${data.status}`;
-            } else if (attempts >= retries) {
-              clearInterval(intervalId);
-              statusText.textContent = "⚠️ Final status not available yet. Please refresh later.";
-            }
-          })
-          .catch(err => {
-            clearInterval(intervalId);
-            console.error("Polling error:", err);
-            statusText.textContent = `❌ Error while polling status: ${err.message}`;
-          });
-      }, interval);
-    }
-
-    // Handle Approve/Reject
+    // Handle approve/reject
     function handleDecision(status) {
       const statusText = document.getElementById("statusText");
       const formIds = getSelectedFormIds();
@@ -158,20 +128,23 @@
         return;
       }
 
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
+      const webhookUrl = https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)};
 
-      statusText.textContent = `Submitting ${status}...`;
+      statusText.textContent = Submitting ${status}...;
 
-      fetch(webhookUrl, { method: 'GET' })
-        .then(response => {
-          if (!response.ok) throw new Error("Webhook call failed");
-          statusText.textContent = `✅ ${status} request sent successfully!`;
-          pollForFinalStatus(reviewer, formIds); // Start polling after submission
-        })
-        .catch(error => {
-          console.error("Error submitting response:", error);
-          statusText.textContent = `❌ Error: ${error.message}`;
-        });
+      fetch(webhookUrl, {
+        method: 'GET'
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Webhook call failed");
+        }
+        statusText.textContent = ✅ ${status} request sent successfully!;
+      })
+      .catch(error => {
+        console.error("Error submitting response:", error);
+        statusText.textContent = ❌ Error: ${error.message};
+      });
     }
 
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
