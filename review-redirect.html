@@ -2,218 +2,178 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Daily Fuel Log Review</title>
   <style>
-    /* Reset and base */
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f4f6f8;
-      color: #333;
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
       margin: 0;
-      padding: 30px 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
-
-    h2#message {
-      font-size: 1.8rem;
-      margin-bottom: 20px;
-      text-align: center;
-      color: #007bff;
-    }
-
-    .spinner {
-      border: 6px solid #ddd;
-      border-top: 6px solid #007bff;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      animation: spin 1s linear infinite;
-      margin: 30px auto;
-    }
-
-    @keyframes spin {
-      0%   { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    #table-container {
-      max-width: 1000px;
-      width: 100%;
-      margin-top: 20px;
-      background: white;
       padding: 20px;
+      text-align: center;
+      color: #333;
+    }
+    h2 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    #table-container {
+      max-width: 90%;
+      margin: 20px auto;
+      background: #fff;
+      padding: 15px;
       border-radius: 8px;
-      box-shadow: 0 8px 16px rgb(0 0 0 / 0.1);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      text-align: left;
       overflow-x: auto;
     }
-
     table {
-      width: 100%;
       border-collapse: collapse;
-      font-size: 0.95rem;
+      width: 100%;
+      font-family: Arial, sans-serif;
     }
-
-    table th,
-    table td {
-      border: 1px solid #ccc;
-      padding: 10px 12px;
-      text-align: center;
+    table, th, td {
+      border: 1px solid #ddd;
     }
-
-    table th {
+    th, td {
+      padding: 8px 12px;
+    }
+    th {
       background-color: #007bff;
       color: white;
-      font-weight: 600;
     }
-
-    /* Button container */
-    #buttons {
-      margin-top: 30px;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-
-    button.action-btn {
-      cursor: pointer;
-      padding: 12px 28px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      border-radius: 5px;
+    button {
+      margin: 20px 10px 0 10px;
+      padding: 12px 25px;
+      font-size: 16px;
       border: none;
+      border-radius: 5px;
+      cursor: pointer;
       color: white;
-      transition: background-color 0.3s ease;
-      min-width: 120px;
-      user-select: none;
+      font-weight: bold;
+      font-family: Arial, sans-serif;
     }
-
-    button#approve-btn {
+    #approve-btn {
       background-color: #28a745;
     }
-    button#approve-btn:hover {
-      background-color: #218838;
-    }
-
-    button#reject-btn {
+    #reject-btn {
       background-color: #dc3545;
     }
-    button#reject-btn:hover {
-      background-color: #c82333;
+    #message {
+      margin-top: 40px;
+      font-size: 20px;
+      color: #666;
     }
-
-    /* Responsive adjustments */
-    @media (max-width: 600px) {
-      table th, table td {
-        padding: 8px 6px;
-        font-size: 0.85rem;
-      }
-      button.action-btn {
-        min-width: 100%;
-        font-size: 1rem;
-      }
-      #buttons {
-        flex-direction: column;
-      }
+    .spinner {
+      border: 6px solid #ccc;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
 
-  <h2 id="message">Loading...</h2>
+  <h2 id="title">Daily Fuel Log Review</h2>
   <div id="spinner" class="spinner"></div>
+  <div id="message">Loading...</div>
   <div id="table-container" style="display:none;"></div>
 
   <div id="buttons" style="display:none;">
-    <button id="approve-btn" class="action-btn">✅ Approve</button>
-    <button id="reject-btn" class="action-btn">❌ Reject</button>
+    <button id="approve-btn">✅ Approve</button>
+    <button id="reject-btn">❌ Reject</button>
   </div>
 
   <script>
-    // Helper: get query params
+    // Helper to get query params
     function getParam(name) {
       return new URLSearchParams(window.location.search).get(name);
     }
 
-    // Base64 decode Unicode safely
+    // Base64 decode Unicode safely with URL-safe conversion and padding fix
     function base64DecodeUnicode(str) {
       try {
+        // Convert URL-safe base64 to standard base64
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        // Pad string length to multiple of 4 with '='
+        while (str.length % 4) {
+          str += '=';
+        }
         return decodeURIComponent(
           Array.prototype.map.call(atob(str), function(c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
           }).join('')
         );
-      } catch(e) {
-        console.error("Decode error:", e);
+      } catch (e) {
+        console.error("Decode error inside base64DecodeUnicode:", e);
         return null;
       }
     }
 
-    // Format date like: 20 July 2025 (you can adjust format here)
-    function formatDate(dateObj) {
-      const options = { year: 'numeric', month: 'long', day: 'numeric' };
-      return dateObj.toLocaleDateString(undefined, options);
-    }
-
-    // Set title with date suffix
-    function setTitleWithDate() {
-      const titleEl = document.getElementById('message');
-      const today = new Date();
-      titleEl.innerText = `Daily Fuel Log Review — ${formatDate(today)}`;
-      titleEl.style.color = '#007bff';
-    }
-
-    // Show table & buttons with data
     function showTableWithButtons(html) {
-      setTitleWithDate();
-
       document.getElementById('spinner').style.display = 'none';
+      document.getElementById('message').style.display = 'none';
+
       const container = document.getElementById('table-container');
       container.style.display = 'block';
       container.innerHTML = html;
 
-      const buttons = document.getElementById('buttons');
-      buttons.style.display = 'flex';
+      document.getElementById('buttons').style.display = 'block';
     }
 
-    // Handle button clicks
-    function handleAction(action) {
-      // Grab reviewer and formId from URL if needed
-      const reviewer = getParam('reviewer') || 'unknown';
-      const formId = getParam('formId') || '';
-
-      // For demo, just alert. Replace this with your actual logic (e.g., POST to webhook)
-      alert(`You clicked "${action}"\nReviewer: ${reviewer}\nForm ID: ${formId}`);
-
-      // TODO: Implement the approve/reject API call or redirect here
+    function updateTitleWithDate() {
+      const titleEl = document.getElementById('title');
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+      titleEl.innerText = `Daily Fuel Log Review - ${formattedDate}`;
     }
 
-    // Main logic
+    // Main execution
     (function() {
-      const data = getParam('data');
+      updateTitleWithDate();
 
-      if (data) {
-        const decodedHtml = base64DecodeUnicode(data);
-        if (decodedHtml) {
-          showTableWithButtons(decodedHtml);
-        } else {
-          document.getElementById('message').innerText = 'Error decoding table data.';
-          document.getElementById('spinner').style.display = 'none';
-        }
-      } else {
+      const data = getParam('data');
+      console.log("Raw 'data' param:", data);
+
+      if (!data) {
         document.getElementById('message').innerText = 'No data found in URL.';
+        document.getElementById('spinner').style.display = 'none';
+        return;
+      }
+
+      try {
+        const urlDecoded = decodeURIComponent(data);
+        console.log("URL-decoded data:", urlDecoded);
+
+        const decodedHtml = base64DecodeUnicode(urlDecoded);
+        if (!decodedHtml) throw new Error('Base64 decode returned null');
+
+        console.log("Decoded HTML:", decodedHtml);
+
+        showTableWithButtons(decodedHtml);
+      } catch (e) {
+        console.error("Decode error:", e);
+        document.getElementById('message').innerText = 'Error decoding table data: ' + e.message;
         document.getElementById('spinner').style.display = 'none';
       }
     })();
 
-    // Attach event listeners for buttons
-    document.getElementById('approve-btn').addEventListener('click', () => handleAction('Approve'));
-    document.getElementById('reject-btn').addEventListener('click', () => handleAction('Reject'));
+    // Hook up Approve/Reject buttons (replace with your own logic)
+    document.getElementById('approve-btn').addEventListener('click', () => {
+      alert("You clicked Approve — implement your approval logic here!");
+      // For example: send webhook + redirect
+    });
+
+    document.getElementById('reject-btn').addEventListener('click', () => {
+      alert("You clicked Reject — implement your rejection logic here!");
+      // For example: send webhook + redirect
+    });
   </script>
 
 </body>
