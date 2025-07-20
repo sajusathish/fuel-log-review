@@ -26,6 +26,7 @@
       max-width: 90%;
       margin: 20px auto;
       text-align: left;
+      overflow-x: auto;
     }
   </style>
 </head>
@@ -36,44 +37,46 @@
   <div id="table-container" style="display:none;"></div>
 
   <script>
+    // Helper: get query params
     function getParam(name) {
-      return new URLSearchParams(window.location.search).get(name);
+      const val = new URLSearchParams(window.location.search).get(name);
+      console.log(`Param ${name}:`, val);
+      return val;
     }
 
-    function base64DecodeUnicode(str) {
+    // Robust base64 decode function
+    function safeBase64Decode(str) {
       try {
-        console.log("Raw input string:", str);
+        console.log('Raw input string:', str);
 
+        // Remove whitespace/newlines
         let cleaned = str.replace(/\s+/g, '');
+        console.log('Whitespace removed:', cleaned);
 
+        // Decode URI components repeatedly until stable
         let prev;
         do {
           prev = cleaned;
           cleaned = decodeURIComponent(cleaned);
         } while (cleaned !== prev);
+        console.log('After decodeURIComponent:', cleaned);
 
-        console.log("After full decodeURIComponent:", cleaned);
-
+        // Replace URL-safe Base64 chars with standard Base64 chars
         cleaned = cleaned.replace(/-/g, '+').replace(/_/g, '/');
+        console.log('After URL-safe char replacement:', cleaned);
 
+        // Add padding '=' to make length multiple of 4
         while (cleaned.length % 4 !== 0) {
           cleaned += '=';
         }
+        console.log('After padding:', cleaned);
 
-        console.log("Cleaned base64 string for atob():", cleaned);
-
-        const binary = atob(cleaned);
-
-        const decoded = decodeURIComponent(
-          Array.prototype.map.call(binary, c => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join('')
-        );
-
-        console.log("Final decoded HTML:", decoded);
+        // Decode base64 string
+        const decoded = atob(cleaned);
+        console.log('Base64 decoded string:', decoded);
         return decoded;
-      } catch(e) {
-        console.error("Decode error:", e);
+      } catch (e) {
+        console.error('Base64 decode error:', e);
         return null;
       }
     }
@@ -84,7 +87,8 @@
     const reviewer = getParam('reviewer');
 
     if (data) {
-      const decodedHtml = base64DecodeUnicode(data);
+      // Show table from base64 HTML data
+      const decodedHtml = safeBase64Decode(data);
       if (decodedHtml) {
         document.getElementById('message').innerText = 'Daily Fuel Log Review';
         document.getElementById('spinner').style.display = 'none';
@@ -97,6 +101,7 @@
       }
     }
     else if (formId && status && reviewer) {
+      // Show submitting spinner & send webhook, then redirect to ACC form
       document.getElementById('message').innerText = 'Submitting your response...';
 
       const webhookURL = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formId)}`;
@@ -108,8 +113,10 @@
         .finally(() => window.location.href = accURL);
     }
     else {
+      // No valid params
       document.getElementById('message').innerText = 'Missing parameters. Please check your link.';
       document.getElementById('spinner').style.display = 'none';
+      console.warn('No valid parameters found in URL');
     }
   </script>
 </body>
