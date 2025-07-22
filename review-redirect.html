@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Daily Fuel Log Review - <span id="todayDate"></span></title>
+  <title> Daily Fuel Log Review </title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -94,6 +94,12 @@
   <div id="statusText"></div>
 
   <script>
+
+    // Display today's date
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("todayDate").textContent = today;
+    document.title = `Daily Fuel Log Review - ${today}`;
+    
     // Helper to decode Base64 URL-safe
     function base64UrlDecode(input) {
       try {
