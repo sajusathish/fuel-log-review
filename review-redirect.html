@@ -9,7 +9,7 @@
       background: #f4f6f8;
     }
 
-    h1 {
+    h3 {
       text-align: center;
       margin-bottom: 30px;
     }
@@ -18,45 +18,58 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     th, td {
       border: 1px solid #ddd;
-      padding: 8px;
+      padding: 10px;
       text-align: center;
+      font-size: 14px;
     }
 
     th {
       background-color: #2c3e50;
       color: white;
+      position: sticky;
+      top: 0;
     }
 
     tr:nth-child(even) {
-      background-color: #f2f2f2;
+      background-color: #f9f9f9;
     }
 
     .buttons {
-      margin-top: 20px;
+      margin-top: 30px;
       text-align: center;
     }
 
     button {
-      padding: 10px 20px;
-      margin: 0 10px;
+      padding: 12px 25px;
+      margin: 0 15px;
       font-size: 16px;
       cursor: pointer;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
     }
 
     .approve {
-      background-color: #2ecc71;
+      background-color: #27ae60;
       color: white;
     }
 
+    .approve:hover {
+      background-color: #219150;
+    }
+
     .reject {
-      background-color: #e74c3c;
+      background-color: #c0392b;
       color: white;
+    }
+
+    .reject:hover {
+      background-color: #a93226;
     }
 
     #statusText {
@@ -93,6 +106,36 @@
       }
     }
 
+    // Add select-all checkbox
+    function addSelectAllControl() {
+      const table = document.querySelector("table");
+      if (!table) return;
+
+      const headerRow = table.querySelector("thead tr");
+      if (!headerRow) return;
+
+      const selectIndex = Array.from(headerRow.children).findIndex(th =>
+        th.textContent.trim().toLowerCase() === "select"
+      );
+
+      if (selectIndex === -1) return;
+
+      const selectAllTh = headerRow.children[selectIndex];
+      const selectAllCheckbox = document.createElement("input");
+      selectAllCheckbox.type = "checkbox";
+      selectAllCheckbox.title = "Select/Deselect All";
+
+      selectAllCheckbox.addEventListener("change", () => {
+        const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
+        checkboxes.forEach(cb => {
+          cb.checked = selectAllCheckbox.checked;
+        });
+      });
+
+      selectAllTh.innerHTML = "";
+      selectAllTh.appendChild(selectAllCheckbox);
+    }
+
     // Get query parameters
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
@@ -105,24 +148,20 @@
     const tableHTML = base64UrlDecode(dataEncoded);
     if (tableHTML) {
       document.getElementById("tableContainer").innerHTML = tableHTML;
+      addSelectAllControl(); // Add checkbox logic after table loads
     } else {
       document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
     }
 
-    // Get selected form IDs from checkboxes already present in HTML table
     function getSelectedFormIds() {
       const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
-      const ids = [];
-      checkboxes.forEach(cb => {
-        ids.push(cb.value);
-      });
-      return ids.join(",");
+      return Array.from(checkboxes).map(cb => cb.value).join(",");
     }
 
-    // Handle approve/reject
     function handleDecision(status) {
-      const statusText = document.getElementById("statusText");
       const formIds = getSelectedFormIds();
+      const statusText = document.getElementById("statusText");
+
       if (!formIds) {
         alert("Please select at least one form.");
         return;
@@ -132,19 +171,15 @@
 
       statusText.textContent = `Submitting ${status}...`;
 
-      fetch(webhookUrl, {
-        method: 'GET'
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Webhook call failed");
-        }
-        statusText.textContent = `✅ ${status} request sent successfully!`;
-      })
-      .catch(error => {
-        console.error("Error submitting response:", error);
-        statusText.textContent = `❌ Error: ${error.message}`;
-      });
+      fetch(webhookUrl, { method: 'GET' })
+        .then(response => {
+          if (!response.ok) throw new Error("Webhook call failed");
+          statusText.textContent = `✅ ${status} request sent successfully!`;
+        })
+        .catch(error => {
+          console.error("Error submitting response:", error);
+          statusText.textContent = `❌ Error: ${error.message}`;
+        });
     }
 
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
