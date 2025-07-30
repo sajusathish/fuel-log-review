@@ -1,1 +1,9 @@
-Hello world!
+
+    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif;">
+      <thead>
+        <tr>
+          <th>Select</th><th>Form ID</th><th>Form Number</th><th>Date</th><th>Name</th><th>Job Number</th><th>Equipment Number</th><th>Fuel Type</th><th>Quantity Issues</th><th>Start Meter Reading</th><th>End Meter Reading</th>
+        </tr>
+      </thead>
+      <tbody>
+    <tr><td><input type='checkbox' name='selectForm' value='3eff201a-9c66-4277-b024-da13f085d1b4'></td><td>3eff201a-9c66-4277-b024-da13f085d1b4</td><td>422</td><td>2025-07-28</td><td>12</td><td>12</td><td>12</td><td>D3 = On Road</td><td>12</td><td>12</td><td>12</td></tr><tr><td><input type='checkbox' name='selectForm' value='05c097ff-14dd-4df7-b2d9-04bf49e9deb1'></td><td>05c097ff-14dd-4df7-b2d9-04bf49e9deb1</td><td>424</td><td>2025-07-29</td><td>12</td><td>12</td><td>12</td><td>D3 = On Road</td><td>12</td><td>12</td><td>12</td></tr></tbody></table>
