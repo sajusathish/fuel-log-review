@@ -1,252 +1,143 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Daily Fuel Log Review</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 40px;
-      background: #f4f6f8;
-      color: #333;
+<script>
+  function base64UrlDecode(input) {
+    try {
+      const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+      const decoded = atob(base64);
+      return decodeURIComponent(escape(decoded));
+    } catch (e) {
+      console.error("Error decoding base64:", e);
+      return null;
+    }
+  }
+
+  function addSelectAllControl() {
+    const table = document.querySelector("table");
+    if (!table) return;
+
+    const headerRow = table.querySelector("thead tr");
+    if (!headerRow) return;
+
+    const selectIndex = Array.from(headerRow.children).findIndex(th =>
+      th.textContent.trim().toLowerCase() === "select"
+    );
+
+    if (selectIndex === -1) return;
+
+    const selectAllTh = headerRow.children[selectIndex];
+    const selectAllCheckbox = document.createElement("input");
+    selectAllCheckbox.type = "checkbox";
+    selectAllCheckbox.title = "Select/Deselect All";
+
+    selectAllCheckbox.addEventListener("change", () => {
+      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
+      checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    });
+
+    selectAllTh.innerHTML = "";
+    selectAllTh.appendChild(selectAllCheckbox);
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const dataEncoded = params.get('data');
+  const reviewer = params.get('reviewer') || 'unknown@domain.com';
+
+  document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
+
+  function insertTableHTML(html) {
+    const container = document.getElementById("tableContainer");
+    container.innerHTML = html;
+    addSelectAllControl();
+  }
+
+  if (dataEncoded) {
+    const tableHTML = base64UrlDecode(dataEncoded);
+    if (tableHTML) {
+      insertTableHTML(tableHTML);
+    } else {
+      document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error decoding table data.</p>";
+    }
+  }
+
+  function getSelectedFormIds() {
+    const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
+    return Array.from(checkboxes).map(cb => cb.value).join(",");
+  }
+
+  function handleDecision(status) {
+    const formIds = getSelectedFormIds();
+    const statusText = document.getElementById("statusText");
+
+    if (!formIds) {
+      alert("Please select at least one form.");
+      return;
     }
 
-    h3 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 24px;
-    }
+    const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
 
-    .button-bar {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
+    statusText.innerHTML = `Submitting ${status}... <span class="loader"></span>`;
 
-    button {
-      padding: 12px 25px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s ease, transform 0.2s ease;
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .refresh {
-      background-color: #3498db;
-      color: white;
-    }
-
-    .refresh:hover {
-      background-color: #2980b9;
-      transform: scale(1.03);
-    }
-
-    .approve {
-      background-color: #27ae60;
-      color: white;
-    }
-
-    .approve:hover {
-      background-color: #219150;
-      transform: scale(1.03);
-    }
-
-    .reject {
-      background-color: #e74c3c;
-      color: white;
-    }
-
-    .reject:hover {
-      background-color: #c0392b;
-      transform: scale(1.03);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: center;
-      font-size: 14px;
-    }
-
-    th {
-      background-color: #2c3e50;
-      color: white;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-
-    #statusText {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 3px solid rgba(255, 255, 255, 0.6);
-      border-top: 3px solid white;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-left: 10px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-
-  <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
-
-  <div class="button-bar">
-    <button class="refresh" id="refreshBtn">🔄 Refresh Table</button>
-    <button class="approve" id="approveBtn">✅ Approve</button>
-    <button class="reject" id="rejectBtn">❌ Reject</button>
-  </div>
-
-  <div id="tableContainer"><p style="text-align:center;">Loading...</p></div>
-
-  <div id="statusText"></div>
-
-  <script>
-    function base64UrlDecode(input) {
-      try {
-        const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = atob(base64);
-        return decodeURIComponent(escape(decoded));
-      } catch (e) {
-        console.error("Error decoding base64:", e);
-        return null;
-      }
-    }
-
-    function addSelectAllControl() {
-      const table = document.querySelector("table");
-      if (!table) return;
-
-      const headerRow = table.querySelector("thead tr");
-      if (!headerRow) return;
-
-      const selectIndex = Array.from(headerRow.children).findIndex(th =>
-        th.textContent.trim().toLowerCase() === "select"
-      );
-
-      if (selectIndex === -1) return;
-
-      const selectAllTh = headerRow.children[selectIndex];
-      const selectAllCheckbox = document.createElement("input");
-      selectAllCheckbox.type = "checkbox";
-      selectAllCheckbox.title = "Select/Deselect All";
-
-      selectAllCheckbox.addEventListener("change", () => {
-        const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
-        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    fetch(webhookUrl, { method: 'GET' })
+      .then(response => {
+        if (!response.ok) throw new Error("Webhook call failed");
+        statusText.textContent = `✅ ${status} request sent successfully!`;
+      })
+      .catch(error => {
+        console.error("Error submitting response:", error);
+        statusText.textContent = `❌ Error: ${error.message}`;
       });
+  }
 
-      selectAllTh.innerHTML = "";
-      selectAllTh.appendChild(selectAllCheckbox);
-    }
+  async function refreshTable() {
+    const triggerUrl = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshform";
+    const fetchUrl = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable";
+    const statusText = document.getElementById("statusText");
 
-    const params = new URLSearchParams(window.location.search);
-    const dataEncoded = params.get('data');
-    const reviewer = params.get('reviewer') || 'unknown@domain.com';
+    statusText.innerHTML = `Refreshing table... <span class="loader"></span>`;
 
-    document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
-
-    function insertTableHTML(html) {
-      const container = document.getElementById("tableContainer");
-      container.innerHTML = html;
-      addSelectAllControl();
-    }
-
-    if (dataEncoded) {
-      const tableHTML = base64UrlDecode(dataEncoded);
-      if (tableHTML) {
-        insertTableHTML(tableHTML);
-      } else {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error decoding table data.</p>";
-      }
-    }
-
-    function getSelectedFormIds() {
-      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
-      return Array.from(checkboxes).map(cb => cb.value).join(",");
-    }
-
-    function handleDecision(status) {
-      const formIds = getSelectedFormIds();
-      const statusText = document.getElementById("statusText");
-
-      if (!formIds) {
-        alert("Please select at least one form.");
-        return;
-      }
-
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
-
-      statusText.innerHTML = `Submitting ${status}... <span class="loader"></span>`;
-
-      fetch(webhookUrl, { method: 'GET' })
-        .then(response => {
-          if (!response.ok) throw new Error("Webhook call failed");
-          statusText.textContent = `✅ ${status} request sent successfully!`;
-        })
-        .catch(error => {
-          console.error("Error submitting response:", error);
-          statusText.textContent = `❌ Error: ${error.message}`;
-        });
-    }
-
-    function refreshTable() {
-      const refreshUrl = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshform";
-      const statusText = document.getElementById("statusText");
-
-      statusText.innerHTML = `Refreshing table... <span class="loader"></span>`;
-
-      fetch(refreshUrl, {
+    try {
+      // Step 1: Trigger Workato processing
+      await fetch(triggerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
-      })
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch table");
-        return res.text();
-      })
-      .then(html => {
-        insertTableHTML(html);
-        statusText.textContent = "✅ Table refreshed.";
-      })
-      .catch(err => {
-        console.error("Error refreshing table:", err);
-        statusText.textContent = `❌ Error refreshing table: ${err.message}`;
       });
+
+      // Step 2: Poll refreshtable for up to 3 seconds (check every 1s)
+      const startTime = Date.now();
+      const maxWait = 3000;
+      const pollInterval = 1000;
+
+      const poll = async () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > maxWait) {
+          statusText.textContent = "⚠️ Timed out waiting for Workato.";
+          return;
+        }
+
+        try {
+          const res = await fetch(fetchUrl, { method: "GET" });
+          const html = await res.text();
+          if (html && html.includes("<table")) {
+            insertTableHTML(html);
+            statusText.textContent = "✅ Table refreshed successfully.";
+            return;
+          }
+        } catch (e) {
+          console.log("Polling error, retrying...");
+        }
+
+        setTimeout(poll, pollInterval);
+      };
+
+      poll();
+
+    } catch (err) {
+      console.error("Error refreshing table:", err);
+      statusText.textContent = `❌ Error: ${err.message}`;
     }
+  }
 
-    document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
-    document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
-    document.getElementById("refreshBtn").onclick = refreshTable;
-  </script>
-
-</body>
-</html>
+  document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
+  document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
+  document.getElementById("refreshBtn").onclick = refreshTable;
+</script>
