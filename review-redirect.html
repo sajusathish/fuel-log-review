@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title> Daily Fuel Log Review </title>
+  <title>Daily Fuel Log Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -46,7 +46,7 @@
 
     button {
       padding: 12px 25px;
-      margin: 0 15px;
+      margin: 0 10px;
       font-size: 16px;
       cursor: pointer;
       border: none;
@@ -72,6 +72,15 @@
       background-color: #a93226;
     }
 
+    .refresh {
+      background-color: #2980b9;
+      color: white;
+    }
+
+    .refresh:hover {
+      background-color: #2471a3;
+    }
+
     #statusText {
       margin-top: 20px;
       text-align: center;
@@ -84,9 +93,10 @@
 
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
 
-  <div id="tableContainer"></div>
+  <div id="tableContainer"><p>Loading...</p></div>
 
   <div class="buttons">
+    <button class="refresh" id="refreshBtn">Refresh Table</button>
     <button class="approve" id="approveBtn">Approve</button>
     <button class="reject" id="rejectBtn">Reject</button>
   </div>
@@ -94,8 +104,6 @@
   <div id="statusText"></div>
 
   <script>
-    
-    // Helper to decode Base64 URL-safe
     function base64UrlDecode(input) {
       try {
         const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -107,7 +115,6 @@
       }
     }
 
-    // Add select-all checkbox
     function addSelectAllControl() {
       const table = document.querySelector("table");
       if (!table) return;
@@ -128,30 +135,32 @@
 
       selectAllCheckbox.addEventListener("change", () => {
         const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
-        checkboxes.forEach(cb => {
-          cb.checked = selectAllCheckbox.checked;
-        });
+        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
       });
 
       selectAllTh.innerHTML = "";
       selectAllTh.appendChild(selectAllCheckbox);
     }
 
-    // Get query parameters
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
     const reviewer = params.get('reviewer') || 'unknown@domain.com';
 
-    // Display today's date
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // Decode and insert table HTML
-    const tableHTML = base64UrlDecode(dataEncoded);
-    if (tableHTML) {
-      document.getElementById("tableContainer").innerHTML = tableHTML;
-      addSelectAllControl(); // Add checkbox logic after table loads
-    } else {
-      document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
+    function insertTableHTML(html) {
+      const container = document.getElementById("tableContainer");
+      container.innerHTML = html;
+      addSelectAllControl();
+    }
+
+    if (dataEncoded) {
+      const tableHTML = base64UrlDecode(dataEncoded);
+      if (tableHTML) {
+        insertTableHTML(tableHTML);
+      } else {
+        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error decoding table data.</p>";
+      }
     }
 
     function getSelectedFormIds() {
@@ -183,8 +192,33 @@
         });
     }
 
+    function refreshTable() {
+      const refreshUrl = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshform";
+
+      document.getElementById("statusText").textContent = "Refreshing table...";
+
+      fetch(refreshUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch table");
+        return res.text();
+      })
+      .then(html => {
+        insertTableHTML(html);
+        document.getElementById("statusText").textContent = "✅ Table refreshed.";
+      })
+      .catch(err => {
+        console.error("Error refreshing table:", err);
+        document.getElementById("statusText").textContent = `❌ Error refreshing table: ${err.message}`;
+      });
+    }
+
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
+    document.getElementById("refreshBtn").onclick = refreshTable;
   </script>
 
 </body>
