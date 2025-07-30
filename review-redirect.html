@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
+      max-width: 900px;
+      margin: auto;
     }
 
     #statusText {
       font-size: 1rem;
       margin-bottom: 10px;
+      min-height: 24px;
     }
 
     .loader {
@@ -22,10 +25,13 @@
       border-top: 2px solid #333;
       border-radius: 50%;
       animation: spin 1s linear infinite;
+      vertical-align: middle;
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     table {
@@ -34,37 +40,50 @@
       margin-top: 20px;
     }
 
-    th, td {
+    th,
+    td {
       border: 1px solid #ccc;
       padding: 8px;
       text-align: left;
     }
 
     button {
-      margin: 8px 5px;
+      margin: 8px 5px 20px 5px;
       padding: 8px 16px;
       font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   </style>
 </head>
 <body>
-  <h2>Daily Fuel Log Review - <span id="todayDate"></span></h2>
+  <h2>
+    Daily Fuel Log Review - <span id="todayDate"></span>
+  </h2>
 
   <div id="statusText">Waiting for refresh...</div>
 
-  <div id="tableContainer">Loading...</div>
+  <div id="tableContainer">Loading table data...</div>
 
   <button id="refreshBtn">🔄 Refresh Table</button>
   <button id="approveBtn">✅ Approve</button>
   <button id="rejectBtn">❌ Reject</button>
 
   <script>
+    // Utility: get URL query parameter by name
     function getQueryParam(key) {
       const url = new URL(window.location.href);
       return url.searchParams.get(key);
     }
 
-    document.getElementById("todayDate").innerText = new Date().toISOString().split("T")[0];
+    // Show today's date (yyyy-mm-dd)
+    document.getElementById("todayDate").innerText = new Date()
+      .toISOString()
+      .split("T")[0];
 
     const statusText = document.getElementById("statusText");
     const tableContainer = document.getElementById("tableContainer");
@@ -72,63 +91,154 @@
     const approveBtn = document.getElementById("approveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
-    const base64Data = getQueryParam("data");
-    if (base64Data) {
+    // Decode Base64 safely
+    function safeBase64Decode(str) {
       try {
-        const htmlContent = atob(base64Data);
-        tableContainer.innerHTML = htmlContent;
-      } catch (e) {
-        tableContainer.innerHTML = "<p style='color:red'>⚠️ Failed to decode data.</p>";
+        // atob expects standard Base64; if URL-safe base64, replace - and _
+        const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+        // Fix padding
+        const padded =
+          base64 + "===".slice((base64.length + 3) % 4);
+        return decodeURIComponent(
+          escape(atob(padded))
+        );
+      } catch {
+        return null;
       }
-    } else {
-      tableContainer.innerHTML = "<p style='color:gray'>⚠️ No data provided.</p>";
     }
 
-    refreshBtn.onclick = () => {
-      const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
-      if (formIds.length === 0) {
-        statusText.innerHTML = "⚠️ Please select at least one form.";
-        return;
+    // Initial load of table from data param
+    function loadTableFromURL() {
+      const base64Data = getQueryParam("data");
+      if (!base64Data) {
+        tableContainer.innerHTML =
+          "<p style='color:gray'>⚠️ No table data provided in URL.</p>";
+        return false;
       }
+      const htmlContent = safeBase64Decode(base64Data);
+      if (!htmlContent) {
+        tableContainer.innerHTML =
+          "<p style='color:red'>⚠️ Failed to decode table data.</p>";
+        return false;
+      }
+      tableContainer.innerHTML = htmlContent;
+      return true;
+    }
 
-      statusText.innerHTML = "<span class='loader'></span> Refreshing...";
-      fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshform", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_ids: formIds })
-      })
-      .then(res => res.json())
-      .then(data => {
-        statusText.innerHTML = "✅ Refreshed. Please reload to see updated table.";
-        console.log("Refresh response:", data);
-      })
-      .catch(err => {
-        console.error("Refresh error", err);
-        statusText.innerHTML = "❌ Failed to refresh.";
-      });
-    };
+    // Only load table initially, do NOT start polling yet
+    const initialLoadSuccess = loadTableFromURL();
+
+    // Refresh polling flag and interval holder
+    let pollingInterval = null;
+
+    // Fetch updated table HTML from Workato webhook (replace URL if needed)
+    async function fetchUpdatedTable() {
+      try {
+        const res = await fetch(
+          "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshform",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const text = await res.text();
+        return text;
+      } catch (err) {
+        console.error("Error fetching updated table:", err);
+        throw err;
+      }
+    }
+
+    // Refresh button click handler
+    refreshBtn.addEventListener("click", async () => {
+      statusText.innerHTML = `<span class="loader"></span> Refreshing table...`;
+
+      refreshBtn.disabled = true;
+      approveBtn.disabled = true;
+      rejectBtn.disabled = true;
+
+      try {
+        // Trigger Workato webhook to refresh data
+        await fetch(
+          "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+
+        // Wait up to 3 seconds, polling every 500ms to get updated table
+        const maxWaitMs = 3000;
+        const pollIntervalMs = 500;
+        let elapsed = 0;
+        let updatedTable = null;
+
+        while (elapsed < maxWaitMs) {
+          try {
+            updatedTable = await fetchUpdatedTable();
+            if (updatedTable && updatedTable.trim().length > 0) break;
+          } catch {
+            // ignore error during polling
+          }
+          await new Promise((r) => setTimeout(r, pollIntervalMs));
+          elapsed += pollIntervalMs;
+        }
+
+        if (updatedTable) {
+          tableContainer.innerHTML = updatedTable;
+          statusText.textContent = "✅ Table refreshed.";
+        } else {
+          statusText.textContent =
+            "⚠️ Timed out waiting for updated table.";
+        }
+      } catch (err) {
+        statusText.textContent = "❌ Failed to refresh table.";
+      } finally {
+        refreshBtn.disabled = false;
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
+      }
+    });
+
+    // Approve / Reject handlers (same as before)
+    function getSelectedFormIds() {
+      return [...document.querySelectorAll("input[name='selectForm']:checked")].map(
+        (el) => el.value
+      );
+    }
 
     function submitAction(action) {
-      const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
-      const reviewer = getQueryParam("Reviewer") || "unknown";
+      const formIds = getSelectedFormIds();
       if (formIds.length === 0) {
         statusText.innerHTML = "⚠️ Please select at least one form.";
         return;
       }
+      const reviewer = getQueryParam("Reviewer") || "unknown";
 
       statusText.innerHTML = `<span class='loader'></span> Submitting ${action}...`;
 
-      fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=" + action + "&Reviewer=" + reviewer + "&Form_Ids=" + encodeURIComponent(formIds.join(",")), {
-        method: "GET"
-      })
-      .then(res => res.text())
-      .then(text => {
-        statusText.innerHTML = "✅ Response submitted: " + text;
-      })
-      .catch(err => {
-        console.error("Submit error", err);
-        statusText.innerHTML = "❌ Failed to submit response.";
-      });
+      fetch(
+        "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=" +
+          action +
+          "&Reviewer=" +
+          reviewer +
+          "&Form_Ids=" +
+          encodeURIComponent(formIds.join(",")),
+        {
+          method: "GET",
+        }
+      )
+        .then((res) => res.text())
+        .then((text) => {
+          statusText.innerHTML = "✅ Response submitted: " + text;
+        })
+        .catch((err) => {
+          console.error("Submit error", err);
+          statusText.innerHTML = "❌ Failed to submit response.";
+        });
     }
 
     approveBtn.onclick = () => submitAction("Approved");
