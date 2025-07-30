@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Daily Fuel Log Review - <span id="todayDate"></span></title>
+  <title>Daily Fuel Log Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -59,13 +59,11 @@
   <button id="rejectBtn">❌ Reject</button>
 
   <script>
-    // Utility to get query param
     function getQueryParam(key) {
       const url = new URL(window.location.href);
       return url.searchParams.get(key);
     }
 
-    // Display today's date
     document.getElementById("todayDate").innerText = new Date().toISOString().split("T")[0];
 
     const statusText = document.getElementById("statusText");
@@ -74,7 +72,6 @@
     const approveBtn = document.getElementById("approveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
-    // Load initial table
     const base64Data = getQueryParam("data");
     if (base64Data) {
       try {
@@ -87,7 +84,6 @@
       tableContainer.innerHTML = "<p style='color:gray'>⚠️ No data provided.</p>";
     }
 
-    // Refresh logic
     refreshBtn.onclick = () => {
       const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
       if (formIds.length === 0) {
@@ -112,7 +108,6 @@
       });
     };
 
-    // Approve / Reject logic
     function submitAction(action) {
       const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
       const reviewer = getQueryParam("Reviewer") || "unknown";
