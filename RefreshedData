@@ -2,7 +2,7 @@
     <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif;">
       <thead>
         <tr>
-          <th>Select</th><th>Form ID</th><th>Form Number</th><th>Date</th><th>Name</th><th>Job Numbers</th><th>Equipment Number</th><th>Fuel Type</th><th>Quantity Issues</th><th>Start Meter Reading</th><th>End Meter Reading</th>
+          <th>Select</th><th>Form ID</th><th>Form Number</th><th>Date</th><th>Name</th><th>Job Number</th><th>Equipment Number</th><th>Fuel Type</th><th>Quantity Issues</th><th>Start Meter Reading</th><th>End Meter Reading</th>
         </tr>
       </thead>
       <tbody>
