@@ -362,13 +362,6 @@
       return text;
     }
 
-    // Compare current table content with new table HTML, ignoring whitespace
-    function isTableContentDifferent(newHTML) {
-      const currentHTML = document.getElementById("tableContainer").innerHTML.trim().replace(/\s+/g, '');
-      const newTrimmed = newHTML.trim().replace(/\s+/g, '');
-      return currentHTML !== newTrimmed;
-    }
-
     // Poll every 3 seconds for up to 30 seconds for updated commit timestamp
     let pollingInterval;
     async function pollForUpdate(initialTimestamp) {
@@ -382,41 +375,21 @@
           try {
             const latestTimestamp = await fetchLatestCommitTimestamp();
 
-            // Commit timestamp changed - update table
-            if (latestTimestamp !== initialTimestamp) {
+            if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
               const newTableHTML = await fetchLatestTableHTML();
               document.getElementById("tableContainer").innerHTML = newTableHTML;
               addSelectAllControl();
               addColumnResizers();
-              statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
-              toggleButtonsDisabled(false);
-              resolve(true);
-              return;
-            }
 
-            // On first attempt, check content difference and update if different
-            if (attempts === 1) {
-              const newTableHTML = await fetchLatestTableHTML();
-              if (isTableContentDifferent(newTableHTML)) {
-                clearInterval(pollingInterval);
-                document.getElementById("tableContainer").innerHTML = newTableHTML;
-                addSelectAllControl();
-                addColumnResizers();
-                statusText.textContent = `✅ Table refreshed! (Content updated) Last update on ${toHSTString(latestTimestamp)}`;
-                toggleButtonsDisabled(false);
-                resolve(true);
-                return;
+              if (latestTimestamp !== initialTimestamp) {
+                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
+              } else {
+                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
               }
-            }
 
-            // No update found after max attempts
-            if (attempts >= maxAttempts) {
-              clearInterval(pollingInterval);
-              statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
               toggleButtonsDisabled(false);
-              resolve(false);
-              return;
+              resolve(latestTimestamp !== initialTimestamp);
             }
           } catch (err) {
             clearInterval(pollingInterval);
