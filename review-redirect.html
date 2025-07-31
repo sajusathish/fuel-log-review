@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title> Daily Fuel Log Review </title>
+  <title>Daily Fuel Log Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -54,6 +54,15 @@
       transition: background-color 0.3s ease;
     }
 
+    .refresh {
+      background-color: #3498db;
+      color: white;
+    }
+
+    .refresh:hover {
+      background-color: #2980b9;
+    }
+
     .approve {
       background-color: #27ae60;
       color: white;
@@ -83,8 +92,8 @@
       display: inline-block;
       width: 16px;
       height: 16px;
-      border: 3px solid rgba(255, 255, 255, 0.6);
-      border-top: 3px solid white;
+      border: 3px solid rgba(0, 0, 0, 0.2);
+      border-top: 3px solid #333;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       vertical-align: middle;
@@ -104,39 +113,52 @@
   <div id="tableContainer"></div>
 
   <div class="buttons">
-    <button class="approve" id="approveBtn">Approve</button>
-    <button class="reject" id="rejectBtn">Reject</button>
-    <button class="refresh" id="refreshBtn" style="background:#3498db; color:#fff;">🔄 Refresh Table</button>
+    <button class="refresh" id="refreshBtn">🔄 Refresh Table</button>
+    <button class="approve" id="approveBtn">✅ Approve</button>
+    <button class="reject" id="rejectBtn">❌ Reject</button>
   </div>
 
   <div id="statusText"></div>
 
   <script>
-    // Helper to decode Base64 URL-safe
+    // Helper to decode Base64 URL-safe encoded string
     function base64UrlDecode(input) {
       try {
+        console.log("Decoding base64 data...");
         const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
         const decoded = atob(base64);
-        return decodeURIComponent(escape(decoded));
+        const decodedURI = decodeURIComponent(escape(decoded));
+        console.log("Decoded data successfully.");
+        return decodedURI;
       } catch (e) {
         console.error("Error decoding base64:", e);
         return null;
       }
     }
 
-    // Add select-all checkbox
+    // Add select-all checkbox in the table header
     function addSelectAllControl() {
       const table = document.querySelector("table");
-      if (!table) return;
+      if (!table) {
+        console.log("No table found to add select all checkbox.");
+        return;
+      }
 
       const headerRow = table.querySelector("thead tr");
-      if (!headerRow) return;
+      if (!headerRow) {
+        console.log("No thead row found in table.");
+        return;
+      }
 
+      // Find the index of "Select" header column
       const selectIndex = Array.from(headerRow.children).findIndex(th =>
         th.textContent.trim().toLowerCase() === "select"
       );
 
-      if (selectIndex === -1) return;
+      if (selectIndex === -1) {
+        console.log("No 'Select' column found in table header.");
+        return;
+      }
 
       const selectAllTh = headerRow.children[selectIndex];
       const selectAllCheckbox = document.createElement("input");
@@ -152,9 +174,11 @@
 
       selectAllTh.innerHTML = "";
       selectAllTh.appendChild(selectAllCheckbox);
+
+      console.log("Added Select All checkbox.");
     }
 
-    // Get query parameters
+    // Get query parameters from URL
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
     const reviewer = params.get('reviewer') || 'unknown@domain.com';
@@ -162,125 +186,135 @@
     // Display today's date
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // Decode and insert table HTML from initial data param
-    function loadInitialTable() {
-      if (!dataEncoded) {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>No data provided.</p>";
-        return;
-      }
+    // Insert decoded table HTML or error message
+    if (dataEncoded) {
       const tableHTML = base64UrlDecode(dataEncoded);
       if (tableHTML) {
         document.getElementById("tableContainer").innerHTML = tableHTML;
         addSelectAllControl();
       } else {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
+        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error decoding table data.</p>";
       }
+    } else {
+      document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>No table data provided in URL.</p>";
+      console.warn("No data query parameter found in URL.");
     }
 
-    loadInitialTable();
+    const statusText = document.getElementById("statusText");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const approveBtn = document.getElementById("approveBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
 
+    // Helper to get selected form IDs from checked checkboxes
     function getSelectedFormIds() {
-      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
-      return Array.from(checkboxes).map(cb => cb.value).join(",");
+      const checkedBoxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
+      const ids = Array.from(checkedBoxes).map(cb => cb.value);
+      console.log("Selected Form IDs:", ids);
+      return ids;
     }
 
-    function handleDecision(status) {
-      const formIds = getSelectedFormIds();
-      const statusText = document.getElementById("statusText");
-
-      if (!formIds) {
+    // Function to submit Approve/Reject decision
+    function submitDecision(status) {
+      const selectedIds = getSelectedFormIds();
+      if (selectedIds.length === 0) {
         alert("Please select at least one form.");
         return;
       }
 
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
+      const formIdsParam = encodeURIComponent(selectedIds.join(","));
+      const reviewerParam = encodeURIComponent(reviewer);
+      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${status}&Reviewer=${reviewerParam}&Form_Ids=${formIdsParam}`;
 
-      statusText.textContent = `Submitting ${status}...`;
+      console.log(`Submitting ${status} to webhook URL:`, webhookUrl);
+      statusText.innerHTML = `Submitting ${status}... <span class="loader"></span>`;
 
-      fetch(webhookUrl, { method: 'GET' })
+      fetch(webhookUrl, { method: "GET" })
         .then(response => {
-          if (!response.ok) throw new Error("Webhook call failed");
-          statusText.textContent = `✅ ${status} request sent successfully!`;
+          if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+          return response.text();
         })
-        .catch(error => {
-          console.error("Error submitting response:", error);
-          statusText.textContent = `❌ Error: ${error.message}`;
+        .then(text => {
+          console.log("Submit response:", text);
+          statusText.textContent = `✅ ${status} submitted successfully!`;
+        })
+        .catch(err => {
+          console.error("Error submitting decision:", err);
+          statusText.textContent = `❌ Error submitting ${status}: ${err.message}`;
         });
     }
 
-    document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
-    document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
+    approveBtn.addEventListener("click", () => submitDecision("Approved"));
+    rejectBtn.addEventListener("click", () => submitDecision("Rejected"));
 
-    // Refresh button logic (GET request + poll updated data)
-    document.getElementById("refreshBtn").onclick = async function () {
-      const statusText = document.getElementById("statusText");
-      const refreshBtn = this;
+    // Function to refresh table by triggering Workato webhook GET and then fetch new data from your GitHub raw file
+    async function refreshTable() {
+      console.log("Refresh button clicked, triggering Workato webhook...");
 
-      statusText.innerHTML = `Refreshing table... <span class="loader"></span>`;
-      refreshBtn.disabled = true;
-      document.getElementById("approveBtn").disabled = true;
-      document.getElementById("rejectBtn").disabled = true;
+      statusText.innerHTML = `Triggering refresh... <span class="loader"></span>`;
 
       try {
-        const response = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" }
+        const webhookResponse = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
+          method: "GET"
         });
 
-        if (!response.ok) {
-          throw new Error(`Workato webhook failed with status ${response.status}`);
+        console.log("Workato webhook trigger response:", webhookResponse.status, webhookResponse.statusText);
+
+        if (!webhookResponse.ok) {
+          throw new Error(`Webhook trigger failed with status ${webhookResponse.status}`);
         }
 
-        await pollForUpdatedData();
+        // Wait up to 5 seconds, polling every 1 second for new data
+        const maxWait = 5000;
+        const interval = 1000;
+        let waited = 0;
+        let newTableHTML = null;
 
-      } catch (error) {
-        console.error("Error calling Workato webhook:", error);
-        statusText.textContent = "❌ Failed to trigger Workato webhook: " + error.message;
-      } finally {
-        refreshBtn.disabled = false;
-        document.getElementById("approveBtn").disabled = false;
-        document.getElementById("rejectBtn").disabled = false;
-      }
-    };
+        while (waited < maxWait) {
+          console.log(`Polling for new table data... waited ${waited}ms`);
 
-    async function pollForUpdatedData() {
-      const statusText = document.getElementById("statusText");
-      const tableContainer = document.getElementById("tableContainer");
+          // Fetch refreshed data raw html from your GitHub repo (raw file URL)
+          const rawDataUrl = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
 
-      const startTime = Date.now();
-      const timeout = 3000; // 3 seconds max wait
+          try {
+            const resp = await fetch(rawDataUrl + "?t=" + Date.now());
+            if (!resp.ok) throw new Error(`Failed to fetch refreshed data: ${resp.status}`);
 
-      async function tryFetch() {
-        try {
-          // URL to raw updated table HTML - this must be publicly accessible raw GitHub URL
-          const res = await fetch("https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData");
-          if (!res.ok) throw new Error(`Status ${res.status}`);
+            const text = await resp.text();
 
-          const text = await res.text();
-
-          if (text && text.trim().length > 0) {
-            tableContainer.innerHTML = text;
-            addSelectAllControl();
-            statusText.textContent = "✅ Table refreshed with latest data.";
-            return true;
+            // Simple heuristic: if text is non-empty and different than current table
+            if (text && text.trim().length > 100) {
+              newTableHTML = text;
+              console.log("Fetched refreshed data.");
+              break;
+            } else {
+              console.log("Fetched data is empty or too small, retrying...");
+            }
+          } catch(fetchErr) {
+            console.warn("Error fetching refreshed data:", fetchErr);
           }
-          return false;
 
-        } catch (err) {
-          console.warn("Polling fetch error:", err);
-          return false;
+          await new Promise(r => setTimeout(r, interval));
+          waited += interval;
         }
-      }
 
-      while (Date.now() - startTime < timeout) {
-        const success = await tryFetch();
-        if (success) return;
-        await new Promise(r => setTimeout(r, 500)); // wait 500ms before retry
-      }
+        if (newTableHTML) {
+          document.getElementById("tableContainer").innerHTML = newTableHTML;
+          addSelectAllControl();
+          statusText.textContent = "✅ Table refreshed!";
+          console.log("Table refreshed with new data.");
+        } else {
+          statusText.textContent = "⚠️ Timed out waiting for refreshed data.";
+          console.warn("Timed out waiting for refreshed data.");
+        }
 
-      statusText.textContent = "⚠️ Timeout waiting for updated data. Try refreshing again.";
+      } catch (err) {
+        console.error("Error during refresh:", err);
+        statusText.textContent = `❌ Refresh failed: ${err.message}`;
+      }
     }
-  </script>
 
+    refreshBtn.addEventListener("click", refreshTable);
+
+  </script>
 </body>
 </html>
