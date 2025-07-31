@@ -1,192 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
   <title>Daily Fuel Log Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
     }
-
-    #statusText {
-      font-size: 1rem;
-      margin-bottom: 10px;
+    #status {
+      margin-top: 10px;
     }
-
-    .loader {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #ccc;
-      border-top: 2px solid #333;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
-
-    button {
-      margin: 8px 5px;
-      padding: 8px 16px;
-      font-size: 14px;
+    .loading {
+      color: #999;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
   <h2>Daily Fuel Log Review - <span id="todayDate"></span></h2>
-
-  <div id="statusText">Waiting for refresh...</div>
-  <div id="tableContainer">Loading...</div>
-
-  <button id="refreshBtn">🔄 Refresh Table</button>
-  <button id="approveBtn">✅ Approve</button>
-  <button id="rejectBtn">❌ Reject</button>
+  <div id="status">Waiting for refresh...</div>
+  <br />
+  <button onclick="startRefresh()">🔄 Refresh Table</button>
+  <button onclick="alert('Approved!')">✅ Approve</button>
+  <button onclick="alert('Rejected!')">❌ Reject</button>
+  <br /><br />
+  <div id="tableContainer">⚠️ Failed to decode data.</div>
 
   <script>
-    function getQueryParam(key) {
-      const url = new URL(window.location.href);
-      return url.searchParams.get(key);
-    }
-
-    function parseUpdatedTimestamp(htmlText) {
-      const match = htmlText.match(/<!--Updated:\s*(.*?)-->/);
-      return match ? new Date(match[1]) : null;
-    }
-
-    function convertToHST(dateObj) {
-      const hstOffsetMs = 10 * 60 * 60 * 1000; // HST = UTC-10
-      const utcTime = dateObj.getTime();
-      const hstDate = new Date(utcTime - hstOffsetMs);
-      return hstDate.toISOString().replace("T", " ").substring(0, 19) + " HST";
-    }
-
-    document.getElementById("todayDate").innerText = new Date().toISOString().split("T")[0];
-
-    const statusText = document.getElementById("statusText");
     const tableContainer = document.getElementById("tableContainer");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const approveBtn = document.getElementById("approveBtn");
-    const rejectBtn = document.getElementById("rejectBtn");
+    const statusDiv = document.getElementById("status");
+    const todayDate = document.getElementById("todayDate");
 
-    let lastUpdatedTime = null;
-    let pollingInterval = null;
-    let pollingTimeout = null;
+    // Display today's date
+    const today = new Date();
+    todayDate.textContent = today.toISOString().split("T")[0];
 
-    // Load table from ?data= param on first load
-    const base64Data = getQueryParam("data");
-    if (base64Data) {
-      try {
-        const htmlContent = atob(base64Data);
-        tableContainer.innerHTML = htmlContent;
+    // Helper to convert ISO datetime to HST string
+    function formatHST(datetimeStr) {
+      const utcDate = new Date(datetimeStr);
+      const hstOffset = -10 * 60; // HST is UTC-10
+      const hstDate = new Date(utcDate.getTime() + hstOffset * 60000);
+      return `${hstDate.toISOString().replace("T", " ").split(".")[0]} HST`;
+    }
 
-        const timestamp = parseUpdatedTimestamp(htmlContent);
-        if (timestamp) {
-          lastUpdatedTime = timestamp;
-          statusText.innerHTML = `✅ Loaded from URL. Last update: ${convertToHST(timestamp)}`;
-        } else {
-          statusText.innerHTML = `⚠️ Loaded table, but no timestamp found.`;
+    // Decode base64 and insert HTML table
+    function loadBase64Table() {
+      const params = new URLSearchParams(window.location.search);
+      const encodedData = params.get("data");
+      if (encodedData) {
+        try {
+          const decodedHtml = atob(encodedData);
+          tableContainer.innerHTML = decodedHtml;
+          statusDiv.textContent = "✅ Table loaded from URL.";
+        } catch (e) {
+          tableContainer.innerHTML = "⚠️ Failed to decode table data.";
         }
+      }
+    }
+
+    loadBase64Table();
+
+    async function getGitHubLastModified() {
+      const res = await fetch("https://api.github.com/repos/sajusathish/fuel-log-review/contents/RefreshedData");
+      const json = await res.json();
+      const isoTime = json.commit?.committer?.date || json.commit?.author?.date;
+      return isoTime;
+    }
+
+    async function fetchUpdatedTable() {
+      try {
+        const res = await fetch("https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData");
+        const html = await res.text();
+        tableContainer.innerHTML = atob(html);
       } catch (e) {
-        tableContainer.innerHTML = "<p style='color:red'>⚠️ Failed to decode base64 HTML.</p>";
+        tableContainer.innerHTML = "⚠️ Failed to load updated data.";
       }
-    } else {
-      tableContainer.innerHTML = "<p style='color:gray'>⚠️ No table data provided in URL.</p>";
     }
 
-    function startPollingForUpdate() {
-      let elapsed = 0;
-      statusText.innerHTML = "<span class='loader'></span> Waiting for table update...";
+    async function startRefresh() {
+      statusDiv.innerHTML = "⏳ Checking for new data...";
+      console.log("▶️ Refresh triggered");
 
-      pollingInterval = setInterval(() => {
-        elapsed += 3;
+      // Step 1: Record old last update datetime
+      let originalDate;
+      try {
+        originalDate = await getGitHubLastModified();
+        console.log("📌 Original GitHub update time:", originalDate);
+      } catch (e) {
+        statusDiv.textContent = "❌ Failed to fetch current timestamp.";
+        return;
+      }
 
-        fetch('https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData')
-          .then(res => res.text())
-          .then(html => {
-            const newTime = parseUpdatedTimestamp(html);
+      // Step 2: Send GET to Workato webhook to trigger backend refresh
+      fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable")
+        .then(() => console.log("📤 Workato webhook triggered"))
+        .catch(() => console.warn("⚠️ Failed to call Workato"));
 
-            if (!newTime) return;
+      // Step 3: Poll every 3s for max 30s
+      let attempts = 0;
+      const maxAttempts = 10;
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        statusDiv.innerHTML = `🔄 Polling GitHub for update... (${attempts}/10)`;
 
-            if (!lastUpdatedTime || newTime.getTime() !== lastUpdatedTime.getTime()) {
-              lastUpdatedTime = newTime;
-              clearInterval(pollingInterval);
-              clearTimeout(pollingTimeout);
-              tableContainer.innerHTML = html;
-              statusText.innerHTML = `✅ Table refreshed! Last update on ${convertToHST(newTime)}`;
-            }
-          })
-          .catch(err => {
-            console.error("Polling error:", err);
-          });
+        let newDate;
+        try {
+          newDate = await getGitHubLastModified();
+          console.log(`⏱ Attempt ${attempts}:`, newDate);
+        } catch (e) {
+          console.warn("⚠️ Failed to poll datetime.");
+          return;
+        }
 
+        if (newDate !== originalDate) {
+          clearInterval(pollInterval);
+          console.log("✅ Update detected. Refreshing table...");
+          await fetchUpdatedTable();
+          statusDiv.innerHTML = `✅ Table refreshed! Last update on ${formatHST(newDate)}`;
+        } else if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          console.log("⏹ No update after 30 seconds");
+          statusDiv.innerHTML = `⚠️ No update detected. Last update was on ${formatHST(originalDate)}`;
+        }
       }, 3000);
-
-      pollingTimeout = setTimeout(() => {
-        clearInterval(pollingInterval);
-        statusText.innerHTML = `⚠️ No updates after 30 seconds. Last update was on ${lastUpdatedTime ? convertToHST(lastUpdatedTime) : "unknown"}`;
-      }, 30000);
     }
-
-    refreshBtn.onclick = () => {
-      const selected = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
-      if (selected.length === 0) {
-        statusText.innerHTML = "⚠️ Please select at least one form.";
-        return;
-      }
-
-      const refreshUrl = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable";
-      statusText.innerHTML = "<span class='loader'></span> Refresh triggered...";
-
-      fetch(refreshUrl)
-        .then(() => {
-          startPollingForUpdate();
-        })
-        .catch(err => {
-          console.error("Error triggering refresh:", err);
-          statusText.innerHTML = "❌ Failed to trigger refresh.";
-        });
-    };
-
-    function submitAction(action) {
-      const selected = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
-      const reviewer = getQueryParam("Reviewer") || "unknown";
-
-      if (selected.length === 0) {
-        statusText.innerHTML = "⚠️ Please select at least one form.";
-        return;
-      }
-
-      const submitUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${action}&Reviewer=${reviewer}&Form_Ids=${encodeURIComponent(selected.join(","))}`;
-      statusText.innerHTML = `<span class='loader'></span> Submitting ${action}...`;
-
-      fetch(submitUrl)
-        .then(res => res.text())
-        .then(text => {
-          statusText.innerHTML = `✅ Response submitted: ${text}`;
-        })
-        .catch(err => {
-          console.error("Submit error:", err);
-          statusText.innerHTML = "❌ Failed to submit response.";
-        });
-    }
-
-    approveBtn.onclick = () => submitAction("Approved");
-    rejectBtn.onclick = () => submitAction("Rejected");
   </script>
 </body>
 </html>
