@@ -389,12 +389,12 @@
       return { text };
     }
 
-    // Poll every 7 seconds for up to 70 seconds for updated content
+    // Poll every 5 seconds for up to 20 seconds for updated content
     let pollingInterval;
     async function pollForUpdate(initialFormIds) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
-      const maxAttempts = 10; // 7s * 10 = 70 seconds max
+      const maxAttempts = 4; // 5s * 4 = 20 seconds max
 
       return new Promise((resolve) => {
         pollingInterval = setInterval(async () => {
@@ -432,7 +432,7 @@
             toggleButtonsDisabled(false);
             resolve(false);
           }
-        }, 7000);
+        }, 5000); // Poll every 5 seconds
       });
     }
 
