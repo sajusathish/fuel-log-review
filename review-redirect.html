@@ -384,13 +384,18 @@
 
     // Fetch the updated table HTML from GitHub raw URL
     async function fetchLatestTableHTML() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      return text;
-    }
+    const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+    const response = await fetch(rawUrl, {
+      cache: "no-store"
+    });
+    
+    if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+    
+    // Ignore last-modified or any cache header
+    const text = await response.text();
+    if (text.trim().length < 10) throw new Error("Refreshed data too short");
+    return text;
+  }
 
     // Get number of rows in a table HTML string
     function countRowsInHTMLTable(html) {
