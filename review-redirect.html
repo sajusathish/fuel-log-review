@@ -1,499 +1,122 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Daily Fuel Log Review</title>
   <style>
-    /* Reset and base */
-    * {
-      box-sizing: border-box;
-    }
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f9fafb;
-      color: #222;
-      line-height: 1.5;
-      overflow-x: hidden;
-    }
     body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      width: 100vw;
-      padding: 20px;
-      align-items: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 1em;
+      background: #f7f7f7;
     }
-    h3 {
-      text-align: center;
-      margin-bottom: 15px;
-      font-weight: 700;
-      color: #2c3e50;
-      font-size: 1.8rem;
-      flex-shrink: 0;
-      width: 90vw;
-      max-width: 1200px;
+    #statusMessage {
+      padding: 0.5em;
+      margin-bottom: 1em;
+      background: #eef;
+      border-left: 4px solid #77f;
+      font-weight: bold;
     }
-    /* Table container fills remaining space */
-    #tableContainer {
-      flex-grow: 1;
-      overflow-x: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
-      background: white;
-      padding: 10px;
-      width: 90vw;
-      max-width: 1200px;
-    }
-    /* Table styles */
     table {
-      width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 4px 15px rgb(0 0 0 / 0.08);
-      border-radius: 8px;
-      overflow: hidden;
-      font-size: 14px;
-      table-layout: fixed; /* For resizing */
-      user-select: none;
-    }
-    thead tr {
-      background-color: #34495e;
-      color: #ecf0f1;
-      font-weight: 600;
-      user-select: none;
+      width: 90vw;
+      margin: auto;
+      background: white;
     }
     th, td {
-      padding: 12px 15px;
-      text-align: center;
-      border-bottom: 1px solid #ddd;
-      vertical-align: middle;
-      position: relative;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+      border: 1px solid #ccc;
+      padding: 0.5em;
+      text-align: left;
     }
-    tbody tr:nth-child(even) {
-      background-color: #f4f7fa;
-    }
-    tbody tr:hover {
-      background-color: #e1ecf7;
-    }
-    /* Resize handle */
-    th .resize-handle {
-      position: absolute;
-      right: 0;
-      top: 0;
-      width: 7px;
-      height: 100%;
-      cursor: col-resize;
-      user-select: none;
-      z-index: 10;
-    }
-    /* Buttons container */
-    .buttons {
-      margin-top: 15px;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      flex-shrink: 0;
-      width: 90vw;
-      max-width: 1200px;
-    }
-    /* Common button style */
-    button {
-      cursor: pointer;
-      border: none;
-      border-radius: 30px;
-      padding: 12px 28px;
-      font-size: 16px;
-      font-weight: 600;
-      color: white;
-      box-shadow: 0 4px 8px rgb(0 0 0 / 0.15);
-      transition:
-        background-color 0.3s ease,
-        box-shadow 0.2s ease,
-        transform 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      user-select: none;
-    }
-    button:hover:not(:disabled) {
-      box-shadow: 0 6px 15px rgb(0 0 0 / 0.25);
-      transform: translateY(-2px);
-    }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-      box-shadow: none;
-      transform: none;
-    }
-    /* Specific buttons */
-    .refresh {
-      background-color: #2980b9;
-    }
-    .refresh:hover:not(:disabled) {
-      background-color: #1f618d;
-    }
-    .approve {
-      background-color: #27ae60;
-    }
-    .approve:hover:not(:disabled) {
-      background-color: #1e8449;
-    }
-    .reject {
-      background-color: #c0392b;
-    }
-    .reject:hover:not(:disabled) {
-      background-color: #922b21;
-    }
-    /* Status text */
-    #statusText {
-      margin-top: 15px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: 600;
-      min-height: 24px;
-      color: #34495e;
-      user-select: none;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-      width: 90vw;
-      max-width: 1200px;
-    }
-    /* Loader spinner */
-    .loader {
-      display: inline-block;
-      width: 18px;
-      height: 18px;
-      border: 3px solid rgba(0,0,0,0.2);
-      border-top: 3px solid #34495e;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg);}
-      100% { transform: rotate(360deg);}
+    th {
+      background: #eee;
     }
   </style>
 </head>
 <body>
 
-  <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
+<div id="statusMessage">Loading table…</div>
+<div id="tableContainer"></div>
 
-  <div id="tableContainer">
-    <p style="text-align:center; color: #666;">Loading table data...</p>
-  </div>
+<script>
+  const repoOwner = "sajusathish";
+  const repoName = "fuel-log-review";
+  const filePath = "review-redirect.html";
+  const branch = "main";
+  const fileUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${filePath}`;
 
-  <div class="buttons">
-    <button class="refresh" id="refreshBtn" aria-label="Refresh Table">🔄 Refresh Table</button>
-    <button class="approve" id="approveBtn" aria-label="Approve Selected">✅ Approve</button>
-    <button class="reject" id="rejectBtn" aria-label="Reject Selected">❌ Reject</button>
-  </div>
+  const urlParams = new URLSearchParams(window.location.search);
+  const dataEncoded = urlParams.get("data");
+  let initialTableHTML = null;
 
-  <div id="statusText" aria-live="polite" role="status"></div>
+  function base64UrlDecode(base64Url) {
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(base64);
+    return decoded;
+  }
 
-  <script>
-    // Helper to decode Base64 URL-safe
-    function base64UrlDecode(input) {
-      try {
-        const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = atob(base64);
-        return decodeURIComponent(escape(decoded));
-      } catch (e) {
-        console.error("Error decoding base64:", e);
-        return null;
+  function extractFormIdSetFromTableHTML(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    const formIds = new Set();
+    const rows = temp.querySelectorAll("table tbody tr");
+    rows.forEach(row => {
+      const formIdCell = row.children[1]; // adjust index if needed
+      if (formIdCell) {
+        const id = formIdCell.textContent.trim();
+        if (id) formIds.add(id);
       }
-    }
+    });
+    return formIds;
+  }
 
-    // Add select-all checkbox in the header cell with "select"
-    function addSelectAllControl() {
-      const table = document.querySelector("table");
-      if (!table) return;
+  function pollForUpdate(initialFormIds, interval = 7000) {
+    console.log("[Poll] Started polling GitHub every", interval, "ms");
 
-      const headerRow = table.querySelector("thead tr");
-      if (!headerRow) return;
+    return new Promise((resolve) => {
+      const check = async () => {
+        console.log("[Poll] Checking for updates…");
+        const response = await fetch(fileUrl + "?cacheBust=" + Date.now());
+        const newText = await response.text();
 
-      const selectIndex = Array.from(headerRow.children).findIndex(th =>
-        th.textContent.trim().toLowerCase() === "select"
-      );
+        const newFormIds = extractFormIdSetFromTableHTML(newText);
+        console.log("[Poll] Old Form IDs:", [...initialFormIds]);
+        console.log("[Poll] New Form IDs:", [...newFormIds]);
 
-      if (selectIndex === -1) return;
+        const hasChange =
+          initialFormIds.size !== newFormIds.size ||
+          [...newFormIds].some(id => !initialFormIds.has(id));
 
-      const selectAllTh = headerRow.children[selectIndex];
-      const selectAllCheckbox = document.createElement("input");
-      selectAllCheckbox.type = "checkbox";
-      selectAllCheckbox.title = "Select/Deselect All";
-
-      selectAllCheckbox.addEventListener("change", () => {
-        const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
-        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
-      });
-
-      selectAllTh.innerHTML = "";
-      selectAllTh.appendChild(selectAllCheckbox);
-    }
-
-    // Add resize handles to table headers and implement drag-to-resize
-    function addColumnResizers() {
-      const table = document.querySelector("table");
-      if (!table) return;
-
-      const thElements = table.querySelectorAll("thead th");
-      thElements.forEach(th => {
-        // Remove old handles if any (to prevent duplicates)
-        const oldHandle = th.querySelector(".resize-handle");
-        if (oldHandle) oldHandle.remove();
-
-        const handle = document.createElement("div");
-        handle.className = "resize-handle";
-        th.appendChild(handle);
-
-        let startX, startWidth;
-
-        handle.addEventListener('mousedown', e => {
-          startX = e.pageX;
-          startWidth = th.offsetWidth;
-          document.body.style.cursor = 'col-resize';
-
-          function onMouseMove(eMove) {
-            const newWidth = startWidth + (eMove.pageX - startX);
-            if (newWidth > 40) {
-              th.style.width = newWidth + "px";
-            }
-          }
-
-          function onMouseUp() {
-            document.body.style.cursor = '';
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-          }
-
-          window.addEventListener('mousemove', onMouseMove);
-          window.addEventListener('mouseup', onMouseUp);
-
-          e.preventDefault();
-        });
-      });
-    }
-
-    // Display today's date in YYYY-MM-DD
-    document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
-
-    // Parse initial data from URL param and insert table
-    const params = new URLSearchParams(window.location.search);
-    const dataEncoded = params.get('data');
-    const reviewer = params.get('reviewer') || 'unknown@domain.com';
-
-    if (dataEncoded) {
-      const tableHTML = base64UrlDecode(dataEncoded);
-      if (tableHTML) {
-        document.getElementById("tableContainer").innerHTML = tableHTML;
-        addSelectAllControl();
-        addColumnResizers();
-      } else {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red; text-align:center;'>Error loading table data.</p>";
-      }
-    } else {
-      document.getElementById("tableContainer").innerHTML = "<p style='color:gray; text-align:center;'>No initial data provided.</p>";
-    }
-
-    function getSelectedFormIds() {
-      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
-      return Array.from(checkboxes).map(cb => cb.value).join(",");
-    }
-
-    function toggleButtonsDisabled(disabled) {
-      document.getElementById("refreshBtn").disabled = disabled;
-      document.getElementById("approveBtn").disabled = disabled;
-      document.getElementById("rejectBtn").disabled = disabled;
-    }
-
-    // Handle approve/reject button click
-    async function handleDecision(status) {
-      const formIds = getSelectedFormIds();
-      const statusText = document.getElementById("statusText");
-
-      if (!formIds) {
-        alert("Please select at least one form.");
-        return;
-      }
-
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
-
-      statusText.textContent = `Submitting ${status}...`;
-      statusText.classList.add("loading");
-      toggleButtonsDisabled(true);
-
-      try {
-        const response = await fetch(webhookUrl, { method: 'GET' });
-        if (!response.ok) throw new Error("Webhook call failed");
-        statusText.textContent = `✅ ${status} request sent successfully!`;
-      } catch (error) {
-        console.error("Error submitting response:", error);
-        statusText.textContent = `❌ Error: ${error.message}`;
-      } finally {
-        toggleButtonsDisabled(false);
-      }
-    }
-
-    document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
-    document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
-
-    // Convert UTC ISO string to HST string
-    function toHSTString(utcString) {
-      const utcDate = new Date(utcString);
-      // HST is UTC-10
-      const hstMs = utcDate.getTime() - (10 * 60 * 60 * 1000);
-      const hstDate = new Date(hstMs);
-      return hstDate.toLocaleString('en-US', {
-        year: 'numeric', month: 'numeric', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false,
-        timeZone: 'UTC' // manual shift done
-      }) + ' HST';
-    }
-
-    // Fetch latest commit timestamp from GitHub API without token (public repo)
-    async function fetchLatestCommitTimestamp() {
-      const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
-      const response = await fetch(commitsUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
-      const commitsJson = await response.json();
-      if (commitsJson.length === 0) throw new Error("No commits found for file");
-      return commitsJson[0].commit.author.date;
-    }
-
-    // Fetch the updated table HTML from GitHub raw URL
-    async function fetchLatestTableHTML() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      return text;
-    }
-
-    // Extract set of Form IDs from table HTML string (from column named "Form ID")
-    function extractFormIdSetFromTableHTML(html) {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      const table = wrapper.querySelector('table');
-      if (!table) return new Set();
-
-      // Find index of Form ID column in header
-      const headers = Array.from(table.querySelectorAll('thead th'));
-      const formIdIndex = headers.findIndex(th => th.textContent.trim().toLowerCase() === 'form id');
-      if (formIdIndex === -1) return new Set();
-
-      const formIds = new Set();
-      const rows = table.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length > formIdIndex) {
-          formIds.add(cells[formIdIndex].textContent.trim());
+        if (hasChange) {
+          document.getElementById("statusMessage").textContent = "✅ Update found!";
+          document.getElementById("tableContainer").innerHTML = newText;
+          resolve();
+        } else {
+          console.log("[Poll] No difference found, continuing…");
+          setTimeout(check, interval);
         }
-      });
+      };
 
-      return formIds;
+      setTimeout(check, interval);
+    });
+  }
+
+  async function init() {
+    if (dataEncoded) {
+      const decodedHTML = base64UrlDecode(dataEncoded);
+      document.getElementById("tableContainer").innerHTML = decodedHTML;
+      initialTableHTML = decodedHTML;
+      document.getElementById("statusMessage").textContent = "✅ Table loaded. Polling for updates…";
+
+      const initialFormIds = extractFormIdSetFromTableHTML(initialTableHTML);
+      await pollForUpdate(initialFormIds);
+    } else {
+      document.getElementById("statusMessage").textContent = "❌ No data provided in URL.";
     }
+  }
 
-    // Compare two sets - returns true if different (any value added or removed)
-    function areFormIdSetsDifferent(setA, setB) {
-      if (setA.size !== setB.size) return true;
-      for (const val of setA) {
-        if (!setB.has(val)) return true;
-      }
-      return false;
-    }
+  init();
+</script>
 
-    // Poll every 7 seconds for up to 70 seconds for updated commit timestamp
-    let pollingInterval;
-    async function pollForUpdate(initialTimestamp) {
-      const statusText = document.getElementById("statusText");
-      let attempts = 0;
-      const maxAttempts = 10; // 7s * 10 = 70 seconds max
-
-      return new Promise((resolve) => {
-        pollingInterval = setInterval(async () => {
-          attempts++;
-          console.log(`[pollForUpdate] Poll attempt ${attempts}`);
-          try {
-            const latestTimestamp = await fetchLatestCommitTimestamp();
-            console.log(`[pollForUpdate] Latest timestamp: ${latestTimestamp}, Initial timestamp: ${initialTimestamp}`);
-
-            if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
-              clearInterval(pollingInterval);
-              const newTableHTML = await fetchLatestTableHTML();
-
-              const currentTableHTML = document.getElementById("tableContainer").innerHTML;
-
-              // Extract Form ID sets
-              const currentFormIds = extractFormIdSetFromTableHTML(currentTableHTML);
-              const newFormIds = extractFormIdSetFromTableHTML(newTableHTML);
-
-              document.getElementById("tableContainer").innerHTML = newTableHTML;
-              addSelectAllControl();
-              addColumnResizers();
-
-              if (latestTimestamp !== initialTimestamp && areFormIdSetsDifferent(currentFormIds, newFormIds)) {
-                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
-                resolve(true);
-              } else {
-                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
-                resolve(false);
-              }
-              toggleButtonsDisabled(false);
-            }
-          } catch (err) {
-            clearInterval(pollingInterval);
-            console.error("[pollForUpdate] Polling error:", err);
-            statusText.textContent = `❌ Polling error: ${err.message}`;
-            toggleButtonsDisabled(false);
-            resolve(false);
-          }
-        }, 7000);
-      });
-    }
-
-    // Main refresh function triggered by Refresh button
-    async function refreshTable() {
-      const statusText = document.getElementById("statusText");
-      statusText.textContent = `Triggering refresh...`;
-      statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-      toggleButtonsDisabled(true);
-
-      try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method: "GET",
-          cache: "no-store"
-        });
-        if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
-
-        const currentTimestamp = await fetchLatestCommitTimestamp();
-
-        statusText.textContent = `Waiting for updated data...`;
-        statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-
-        await pollForUpdate(currentTimestamp);
-      } catch (err) {
-        statusText.textContent = `❌ Refresh failed: ${err.message}`;
-        toggleButtonsDisabled(false);
-      }
-    }
-
-    document.getElementById("refreshBtn").onclick = refreshTable;
-
-  </script>
 </body>
 </html>
