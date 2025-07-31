@@ -321,7 +321,7 @@
       document.getElementById("rejectBtn").disabled = disabled;
     }
 
-    // Handle approve/reject button click
+    // Handle approve/reject button click (RESTORED ASYNC AND BUTTON DISABLING)
     async function handleDecision(status) {
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
@@ -331,20 +331,25 @@
         return;
       }
 
+      // Ensure the correct parameter name 'Form_Ids' is used as per your Workato webhook
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
 
       statusText.textContent = `Submitting ${status}...`;
-      toggleButtonsDisabled(true);
+      toggleButtonsDisabled(true); // Disable buttons during submission
 
       try {
         const response = await fetch(webhookUrl, { method: 'GET' });
-        if (!response.ok) throw new Error("Webhook call failed");
+        if (!response.ok) {
+          // If response is not ok, read the response text to get more details if available
+          const errorDetail = await response.text();
+          throw new Error(`Webhook call failed with status ${response.status}: ${errorDetail}`);
+        }
         statusText.textContent = `✅ ${status} request sent successfully!`;
       } catch (error) {
         console.error("Error submitting response:", error);
         statusText.textContent = `❌ Error: ${error.message}`;
       } finally {
-        toggleButtonsDisabled(false);
+        toggleButtonsDisabled(false); // Re-enable buttons after submission (success or failure)
       }
     }
 
@@ -449,7 +454,10 @@
           method: "GET",
           cache: "no-store"
         });
-        if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
+        if (!webhookResp.ok) {
+          const errorDetail = await webhookResp.text();
+          throw new Error(`Webhook trigger failed with status ${webhookResp.status}: ${errorDetail}`);
+        }
 
         // Get initial Form_IDs from the currently displayed table
         const currentTableHTML = document.getElementById("tableContainer").innerHTML;
