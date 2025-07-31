@@ -364,58 +364,57 @@
       }) + ' HST';
     }
 
-    // Fetch latest commit timestamp from GitHub commits API WITHOUT token, with debug logs
+    // Fetch latest commit timestamp from GitHub API without token (public repo)
     async function fetchLatestCommitTimestamp() {
       const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
-      console.log("[fetchLatestCommitTimestamp] Fetching commits from:", commitsUrl);
-      try {
-        const response = await fetch(commitsUrl, { cache: "no-store" });
-        console.log("[fetchLatestCommitTimestamp] Response status:", response.status);
-        console.log("[fetchLatestCommitTimestamp] Response headers:", [...response.headers.entries()]);
-        if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
-
-        const commitsJson = await response.json();
-        console.log("[fetchLatestCommitTimestamp] Commit JSON:", commitsJson);
-
-        if (commitsJson.length === 0) throw new Error("No commits found for file");
-        console.log("[fetchLatestCommitTimestamp] Commit date:", commitsJson[0].commit.author.date);
-        return commitsJson[0].commit.author.date;
-      } catch (e) {
-        console.error("[fetchLatestCommitTimestamp] Error:", e);
-        throw e;
-      }
+      const response = await fetch(commitsUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
+      const commitsJson = await response.json();
+      if (commitsJson.length === 0) throw new Error("No commits found for file");
+      return commitsJson[0].commit.author.date;
     }
 
-    // Fetch the updated table HTML from GitHub raw URL with debug logs
+    // Fetch the updated table HTML from GitHub raw URL
     async function fetchLatestTableHTML() {
       const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      console.log("[fetchLatestTableHTML] Fetching raw file from:", rawUrl);
-      try {
-        const response = await fetch(rawUrl, { cache: "no-store" });
-        console.log("[fetchLatestTableHTML] Response status:", response.status);
-        console.log("[fetchLatestTableHTML] Response headers:", [...response.headers.entries()]);
-        if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-
-        const text = await response.text();
-        console.log("[fetchLatestTableHTML] Raw text length:", text.length);
-
-        if (text.trim().length < 10) throw new Error("Refreshed data too short");
-        return text;
-      } catch (e) {
-        console.error("[fetchLatestTableHTML] Error:", e);
-        throw e;
-      }
+      const response = await fetch(rawUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+      const text = await response.text();
+      if (text.trim().length < 10) throw new Error("Refreshed data too short");
+      return text;
     }
 
-    // Get number of rows in a table HTML string
-    function countRowsInHTMLTable(html) {
+    // Extract set of Form IDs from table HTML string (from column named "Form ID")
+    function extractFormIdSetFromTableHTML(html) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html;
       const table = wrapper.querySelector('table');
-      if (!table) return 0;
-      const tbody = table.querySelector('tbody');
-      if (!tbody) return 0;
-      return tbody.rows.length;
+      if (!table) return new Set();
+
+      // Find index of Form ID column in header
+      const headers = Array.from(table.querySelectorAll('thead th'));
+      const formIdIndex = headers.findIndex(th => th.textContent.trim().toLowerCase() === 'form id');
+      if (formIdIndex === -1) return new Set();
+
+      const formIds = new Set();
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > formIdIndex) {
+          formIds.add(cells[formIdIndex].textContent.trim());
+        }
+      });
+
+      return formIds;
+    }
+
+    // Compare two sets - returns true if different (any value added or removed)
+    function areFormIdSetsDifferent(setA, setB) {
+      if (setA.size !== setB.size) return true;
+      for (const val of setA) {
+        if (!setB.has(val)) return true;
+      }
+      return false;
     }
 
     // Poll every 7 seconds for up to 70 seconds for updated commit timestamp
@@ -438,14 +437,16 @@
               const newTableHTML = await fetchLatestTableHTML();
 
               const currentTableHTML = document.getElementById("tableContainer").innerHTML;
-              const currentRows = countRowsInHTMLTable(currentTableHTML);
-              const newRows = countRowsInHTMLTable(newTableHTML);
+
+              // Extract Form ID sets
+              const currentFormIds = extractFormIdSetFromTableHTML(currentTableHTML);
+              const newFormIds = extractFormIdSetFromTableHTML(newTableHTML);
 
               document.getElementById("tableContainer").innerHTML = newTableHTML;
               addSelectAllControl();
               addColumnResizers();
 
-              if (latestTimestamp !== initialTimestamp && newRows !== currentRows) {
+              if (latestTimestamp !== initialTimestamp && areFormIdSetsDifferent(currentFormIds, newFormIds)) {
                 statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
                 resolve(true);
               } else {
@@ -473,27 +474,26 @@
       toggleButtonsDisabled(true);
 
       try {
-        console.log("[refreshTable] Triggering Workato webhook");
         const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
           method: "GET",
           cache: "no-store"
         });
-        console.log("[refreshTable] Webhook response status:", webhookResp.status);
         if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
         const currentTimestamp = await fetchLatestCommitTimestamp();
+
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
         await pollForUpdate(currentTimestamp);
       } catch (err) {
-        console.error("[refreshTable] Error:", err);
         statusText.textContent = `❌ Refresh failed: ${err.message}`;
         toggleButtonsDisabled(false);
       }
     }
 
-    document.getElementById("refreshBtn").addEventListener("click", refreshTable);
+    document.getElementById("refreshBtn").onclick = refreshTable;
+
   </script>
 </body>
 </html>
