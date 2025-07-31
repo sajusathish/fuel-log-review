@@ -63,19 +63,20 @@
 <body>
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
   <div class="buttons">
-    <button class="approve" id="approveBtn">Approve</button>
-    <button class="reject" id="rejectBtn">Reject</button>
-    <button class="refresh" id="refreshBtn">🔄 Refresh</button>
+    <button class="refresh" id="refreshBtn">🔄 Refresh Table</button>
+    <button class="approve" id="approveBtn">✅ Approve</button>
+    <button class="reject" id="rejectBtn">❌ Reject</button>
   </div>
-  <div id="statusText"></div>
+  <div id="statusText">Waiting for refresh...</div>
   <div id="tableContainer"></div>
 
   <script>
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
+
     const reviewer = new URLSearchParams(window.location.search).get("reviewer") || "unknown@domain.com";
     const githubRawURL = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
-    let pollingInterval;
-    let previousTimestamp = "";
+
+    let lastTimestamp = "";
 
     async function getLastUpdatedHST() {
       const response = await fetch(githubRawURL, { cache: "no-store" });
@@ -83,95 +84,15 @@
       const match = html.match(/<!--Updated: (.*?)-->/);
       if (match) {
         const utc = new Date(match[1]);
-        const utcTime = utc.getTime();
-        const hstOffset = -10 * 60 * 60 * 1000;
-        const hst = new Date(utcTime + hstOffset);
-        return {
-          date: hst.toLocaleString("en-US", { timeZone: "UTC" }) + " HST",
-          raw: match[1],
-          content: html
-        };
+        const hstTime = new Date(utc.getTime() - 10 * 60 * 60 * 1000);
+        const formatted = hstTime.toLocaleString("en-US", { hour12: false }) + " HST";
+        return { date: formatted, raw: match[1], content: html };
       }
       return null;
     }
 
     async function refreshTable() {
-      console.log("🔄 Refresh clicked. Checking current update time...");
-      const initial = await getLastUpdatedHST();
-      if (!initial) {
-        document.getElementById("statusText").textContent = "❌ Could not fetch initial timestamp.";
-        return;
-      }
-
-      previousTimestamp = initial.raw;
-      document.getElementById("statusText").textContent = "⏳ Fetching new data...";
-      document.getElementById("tableContainer").innerHTML = ""; // Clear old table
-      console.log(`📌 Initial timestamp: ${initial.raw}`);
-
-      fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable")
-        .then(res => res.text())
-        .then(_ => {
-          console.log("✅ Workato webhook triggered successfully");
-          startPolling(initial.raw);
-        })
-        .catch(err => {
-          console.error("❌ Error triggering webhook:", err);
-          document.getElementById("statusText").textContent = "❌ Error triggering refresh.";
-        });
-    }
-
-    function startPolling(initialTimestamp) {
-      console.log("⏳ Starting polling for updates every 3s for 30s...");
-      let attempts = 0;
-      clearInterval(pollingInterval);
-
-      pollingInterval = setInterval(async () => {
-        attempts++;
-        console.log(`🔁 Poll #${attempts}`);
-        const latest = await getLastUpdatedHST();
-        if (!latest) return;
-
-        if (latest.raw !== initialTimestamp) {
-          clearInterval(pollingInterval);
-          console.log("✅ New update found. Refreshing table...");
-          document.getElementById("tableContainer").innerHTML = latest.content;
-          document.getElementById("statusText").textContent = `✅ Table refreshed! Last update on ${latest.date}`;
-          previousTimestamp = latest.raw;
-        } else if (attempts >= 10) {
-          clearInterval(pollingInterval);
-          console.log("⚠️ No update detected after 30 seconds.");
-          document.getElementById("statusText").textContent = `⚠️ No updates found. Last updated at ${latest.date}`;
-        }
-      }, 3000);
-    }
-
-    function getSelectedFormIds() {
-      const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']:checked");
-      return Array.from(checkboxes).map(cb => cb.value).join(",");
-    }
-
-    function handleDecision(status) {
-      const formIds = getSelectedFormIds();
-      const statusText = document.getElementById("statusText");
-      if (!formIds) return alert("Please select at least one form.");
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
-      console.log(`📤 Submitting status: ${status} for forms: ${formIds}`);
-      statusText.textContent = `Submitting ${status}...`;
-
-      fetch(webhookUrl)
-        .then(response => {
-          if (!response.ok) throw new Error("Webhook call failed");
-          statusText.textContent = `✅ ${status} request sent successfully!`;
-        })
-        .catch(error => {
-          console.error("❌ Submission error:", error);
-          statusText.textContent = `❌ Error: ${error.message}`;
-        });
-    }
-
-    document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
-    document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
-    document.getElementById("refreshBtn").onclick = refreshTable;
-  </script>
-</body>
-</html>
+      document.getElementById("statusText").textContent = "🔄 Refreshing... Please wait";
+      const snapshot = await getLastUpdatedHST();
+      if (!snapshot) {
+        document.getElementById("statusText").textContent = "⚠️ Unable to read timesta
