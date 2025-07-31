@@ -422,7 +422,7 @@
     async function pollForUpdate(initialTimestamp) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
-      const maxAttempts = 4; // 7s * 10 = 70 seconds max
+      const maxAttempts = 10; // 7s * 10 = 70 seconds max
 
       return new Promise((resolve) => {
         pollingInterval = setInterval(async () => {
