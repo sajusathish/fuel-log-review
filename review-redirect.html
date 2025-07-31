@@ -32,6 +32,8 @@
       border-radius: 8px;
       overflow: hidden;
       font-size: 14px;
+      table-layout: fixed; /* For resizing to work */
+      user-select: none;
     }
     thead tr {
       background-color: #34495e;
@@ -44,12 +46,27 @@
       text-align: center;
       border-bottom: 1px solid #ddd;
       vertical-align: middle;
+      position: relative; /* For resize handle */
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
     tbody tr:nth-child(even) {
       background-color: #f4f7fa;
     }
     tbody tr:hover {
       background-color: #e1ecf7;
+    }
+    /* Resize handle */
+    th .resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 7px;
+      height: 100%;
+      cursor: col-resize;
+      user-select: none;
+      z-index: 10;
     }
     /* Buttons container */
     .buttons {
@@ -205,6 +222,49 @@
       selectAllTh.appendChild(selectAllCheckbox);
     }
 
+    // Add resize handles to table headers and implement drag-to-resize
+    function addColumnResizers() {
+      const table = document.querySelector("table");
+      if (!table) return;
+
+      const thElements = table.querySelectorAll("thead th");
+      thElements.forEach(th => {
+        // Remove old handles if any (to prevent duplicates)
+        const oldHandle = th.querySelector(".resize-handle");
+        if (oldHandle) oldHandle.remove();
+
+        const handle = document.createElement("div");
+        handle.className = "resize-handle";
+        th.appendChild(handle);
+
+        let startX, startWidth;
+
+        handle.addEventListener('mousedown', e => {
+          startX = e.pageX;
+          startWidth = th.offsetWidth;
+          document.body.style.cursor = 'col-resize';
+
+          function onMouseMove(eMove) {
+            const newWidth = startWidth + (eMove.pageX - startX);
+            if (newWidth > 40) {
+              th.style.width = newWidth + "px";
+            }
+          }
+
+          function onMouseUp() {
+            document.body.style.cursor = '';
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          }
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+
+          e.preventDefault();
+        });
+      });
+    }
+
     // Display today's date in YYYY-MM-DD
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
@@ -218,6 +278,7 @@
       if (tableHTML) {
         document.getElementById("tableContainer").innerHTML = tableHTML;
         addSelectAllControl();
+        addColumnResizers();
       } else {
         document.getElementById("tableContainer").innerHTML = "<p style='color:red; text-align:center;'>Error loading table data.</p>";
       }
@@ -327,6 +388,7 @@
               const newTableHTML = await fetchLatestTableHTML();
               document.getElementById("tableContainer").innerHTML = newTableHTML;
               addSelectAllControl();
+              addColumnResizers();
               statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
               toggleButtonsDisabled(false);
               resolve(true);
@@ -340,6 +402,7 @@
                 clearInterval(pollingInterval);
                 document.getElementById("tableContainer").innerHTML = newTableHTML;
                 addSelectAllControl();
+                addColumnResizers();
                 statusText.textContent = `✅ Table refreshed! (Content updated) Last update on ${toHSTString(latestTimestamp)}`;
                 toggleButtonsDisabled(false);
                 resolve(true);
