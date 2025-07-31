@@ -21,9 +21,9 @@
     body {
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      width: 100vw;
       padding: 20px;
+      min-height: 100vh;
+      min-width: 100vw;
     }
     h3 {
       text-align: center;
@@ -33,15 +33,17 @@
       font-size: 1.8rem;
       flex-shrink: 0;
     }
-    /* Table container fills remaining space */
+    /* Table container fills up to 90% viewport height */
     #tableContainer {
       flex-grow: 1;
+      max-height: 90vh;
       overflow-x: auto;
+      overflow-y: auto;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
       background: white;
       padding: 10px;
-      width: 100vw;
+      width: 100%;
     }
     /* Table styles */
     table {
@@ -356,14 +358,14 @@
       }) + ' HST';
     }
 
-    // Fetch latest commit timestamp from GitHub API
-    async function fetchLatestCommitTimestamp() {
-      const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
-      const response = await fetch(commitsUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
-      const commitsJson = await response.json();
-      if (commitsJson.length === 0) throw new Error("No commits found for file");
-      return commitsJson[0].commit.author.date;
+    // Fetch last-modified date from raw GitHub file HEAD request to avoid API limits
+    async function fetchLatestFileModifiedDate() {
+      const rawUrl = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
+      const response = await fetch(rawUrl, { method: 'HEAD', cache: "no-store" });
+      if (!response.ok) throw new Error(`Failed HEAD request: ${response.status}`);
+      const lastModified = response.headers.get('Last-Modified');
+      if (!lastModified) throw new Error("No Last-Modified header found");
+      return new Date(lastModified).toISOString();
     }
 
     // Fetch the updated table HTML from GitHub raw URL
@@ -387,18 +389,18 @@
       return tbody.rows.length;
     }
 
-    // Poll every 3 seconds for up to 30 seconds for updated commit timestamp
+    // Poll every 7 seconds for up to 70 seconds for updated file date
     let pollingInterval;
     async function pollForUpdate(initialTimestamp) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
-      const maxAttempts = 10; // 3s * 10 = 30 seconds max
+      const maxAttempts = 10; // 7s * 10 = 70 seconds max
 
       return new Promise((resolve) => {
         pollingInterval = setInterval(async () => {
           attempts++;
           try {
-            const latestTimestamp = await fetchLatestCommitTimestamp();
+            const latestTimestamp = await fetchLatestFileModifiedDate();
             if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
               const newTableHTML = await fetchLatestTableHTML();
@@ -428,7 +430,7 @@
             toggleButtonsDisabled(false);
             resolve(false);
           }
-        }, 3000);
+        }, 7000);
       });
     }
 
@@ -446,7 +448,7 @@
         });
         if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
-        const currentTimestamp = await fetchLatestCommitTimestamp();
+        const currentTimestamp = await fetchLatestFileModifiedDate();
 
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
