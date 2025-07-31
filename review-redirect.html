@@ -7,7 +7,6 @@
       font-family: Arial, sans-serif;
       margin: 40px;
       background: #f4f6f8;
-      color: #333;
     }
     h3 {
       text-align: center;
@@ -17,7 +16,7 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
     th, td {
       border: 1px solid #ddd;
@@ -30,7 +29,6 @@
       color: white;
       position: sticky;
       top: 0;
-      z-index: 1;
     }
     tr:nth-child(even) {
       background-color: #f9f9f9;
@@ -48,132 +46,86 @@
       border-radius: 6px;
       transition: background-color 0.3s ease;
     }
-    .approve {
-      background-color: #27ae60;
-      color: white;
-    }
-    .approve:hover {
-      background-color: #219150;
-    }
-    .reject {
-      background-color: #c0392b;
-      color: white;
-    }
-    .reject:hover {
-      background-color: #a93226;
-    }
+    .approve { background-color: #27ae60; color: white; }
+    .approve:hover { background-color: #219150; }
+    .reject { background-color: #c0392b; color: white; }
+    .reject:hover { background-color: #a93226; }
+    .refresh { background-color: #2980b9; color: white; }
+    .refresh:hover { background-color: #2471a3; }
     #statusText {
       margin-top: 20px;
       text-align: center;
       font-size: 16px;
       font-weight: bold;
     }
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 3px solid rgba(0,0,0,0.2);
-      border-top: 3px solid #333;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-left: 8px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg);}
-      100% { transform: rotate(360deg);}
-    }
   </style>
 </head>
 <body>
-
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
-
-  <div id="tableContainer"><p style="text-align:center;">Loading table data...</p></div>
-
   <div class="buttons">
-    <button class="refresh" id="refreshBtn">🔄 Refresh Table</button>
-    <button class="approve" id="approveBtn">✅ Approve</button>
-    <button class="reject" id="rejectBtn">❌ Reject</button>
+    <button class="approve" id="approveBtn">Approve</button>
+    <button class="reject" id="rejectBtn">Reject</button>
+    <button class="refresh" id="refreshBtn">🔄 Refresh</button>
   </div>
-
   <div id="statusText"></div>
-
+  <div id="tableContainer"></div>
   <script>
-    // Helper to decode Base64 URL-safe
-    function base64UrlDecode(input) {
-      try {
-        const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = atob(base64);
-        return decodeURIComponent(escape(decoded));
-      } catch (e) {
-        console.error("Error decoding base64:", e);
-        return null;
-      }
-    }
-
-    // Add select-all checkbox
-    function addSelectAllControl() {
-      const table = document.querySelector("table");
-      if (!table) return;
-
-      const headerRow = table.querySelector("thead tr");
-      if (!headerRow) return;
-
-      const selectIndex = Array.from(headerRow.children).findIndex(th =>
-        th.textContent.trim().toLowerCase() === "select"
-      );
-
-      if (selectIndex === -1) return;
-
-      const selectAllTh = headerRow.children[selectIndex];
-      const selectAllCheckbox = document.createElement("input");
-      selectAllCheckbox.type = "checkbox";
-      selectAllCheckbox.title = "Select/Deselect All";
-
-      selectAllCheckbox.addEventListener("change", () => {
-        const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
-        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
-      });
-
-      selectAllTh.innerHTML = "";
-      selectAllTh.appendChild(selectAllCheckbox);
-    }
-
-    // Convert ISO date string to HST string with label
-    function toHST(isoDateStr) {
-      const date = new Date(isoDateStr);
-      // Subtract 10 hours to convert UTC to HST
-      const hstTime = new Date(date.getTime() - (10 * 60 * 60 * 1000));
-
-      const yyyy = hstTime.getUTCFullYear();
-      const mm = String(hstTime.getUTCMonth() + 1).padStart(2, '0');
-      const dd = String(hstTime.getUTCDate()).padStart(2, '0');
-      const hh = String(hstTime.getUTCHours()).padStart(2, '0');
-      const min = String(hstTime.getUTCMinutes()).padStart(2, '0');
-      const sec = String(hstTime.getUTCSeconds()).padStart(2, '0');
-
-      return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec} HST`;
-    }
-
-    // Display today's date
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
+    const reviewer = new URLSearchParams(window.location.search).get("reviewer") || "unknown@domain.com";
+    const githubRawURL = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
+    let previousTimestamp = "";
+    let pollingInterval;
 
-    // Parse initial data from URL param and insert table
-    const params = new URLSearchParams(window.location.search);
-    const dataEncoded = params.get('data');
-    const reviewer = params.get('reviewer') || 'unknown@domain.com';
-
-    if (dataEncoded) {
-      const tableHTML = base64UrlDecode(dataEncoded);
-      if (tableHTML) {
-        document.getElementById("tableContainer").innerHTML = tableHTML;
-        addSelectAllControl();
-      } else {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red;'>Error loading table data.</p>";
+    async function getLastUpdatedHST() {
+      const response = await fetch(githubRawURL, { cache: "no-store" });
+      const html = await response.text();
+      const match = html.match(/<!--Updated: (.*?)-->/);
+      if (match) {
+        const utc = new Date(match[1]);
+        const utcTime = utc.getTime();
+        const hstOffset = -10 * 60 * 60 * 1000;
+        const hst = new Date(utcTime + hstOffset);
+        return { date: hst.toLocaleString("en-US", { timeZone: "UTC" }), raw: match[1], content: html };
       }
-    } else {
-      document.getElementById("tableContainer").innerHTML = "<p style='color:gray;'>No initial data provided.</p>";
+      return null;
+    }
+
+    async function refreshTable() {
+      console.log("🔄 Refresh button clicked, sending GET request to Workato webhook");
+      document.getElementById("statusText").textContent = "Refreshing...";
+      fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable")
+        .then(res => res.text())
+        .then(_ => {
+          console.log("✅ Workato webhook triggered");
+          pollForUpdate();
+        })
+        .catch(err => {
+          console.error("❌ Error triggering Workato webhook", err);
+          document.getElementById("statusText").textContent = "❌ Error triggering refresh.";
+        });
+    }
+
+    async function pollForUpdate() {
+      console.log("⏳ Polling for updated table every 3 seconds...");
+      let attempts = 0;
+      clearInterval(pollingInterval);
+      pollingInterval = setInterval(async () => {
+        attempts++;
+        console.log(`⏱️ Poll attempt #${attempts}`);
+        const result = await getLastUpdatedHST();
+        if (!result) return;
+        if (result.raw !== previousTimestamp) {
+          clearInterval(pollingInterval);
+          previousTimestamp = result.raw;
+          console.log("✅ New update detected, loading table...");
+          document.getElementById("tableContainer").innerHTML = result.content;
+          document.getElementById("statusText").textContent = `✅ Table refreshed! Last update on ${result.date} HST`;
+        } else if (attempts >= 10) {
+          clearInterval(pollingInterval);
+          console.log("⚠️ No updates found within 30 seconds");
+          document.getElementById("statusText").textContent = `⚠️ No updates found. Last updated at ${result.date} HST`;
+        }
+      }, 3000);
     }
 
     function getSelectedFormIds() {
@@ -181,22 +133,14 @@
       return Array.from(checkboxes).map(cb => cb.value).join(",");
     }
 
-    // Handle approve/reject button click
     function handleDecision(status) {
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
-
-      if (!formIds) {
-        alert("Please select at least one form.");
-        return;
-      }
-
-      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
-
+      if (!formIds) return alert("Please select at least one form.");
+      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&FormIds=${encodeURIComponent(formIds)}`;
+      console.log(`📤 Sending ${status} decision to webhook`);
       statusText.textContent = `Submitting ${status}...`;
-      statusText.innerHTML += ' <span class="loader"></span>';
-
-      fetch(webhookUrl, { method: 'GET' })
+      fetch(webhookUrl)
         .then(response => {
           if (!response.ok) throw new Error("Webhook call failed");
           statusText.textContent = `✅ ${status} request sent successfully!`;
@@ -209,84 +153,6 @@
 
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
-
-    // Refresh table: trigger Workato webhook and then fetch new table HTML from GitHub
-    async function refreshTable() {
-      const statusText = document.getElementById("statusText");
-      statusText.innerHTML = `Triggering refresh... <span class="loader"></span>`;
-      console.log("Sending GET to Workato webhook to refresh data...");
-
-      try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method: "GET"
-        });
-        console.log("Workato webhook response:", webhookResp.status, webhookResp.statusText);
-        if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
-
-        // Poll for refreshed data up to 5s
-        const maxWait = 5000;
-        const interval = 1000;
-        let waited = 0;
-        let newTableHTML = null;
-
-        while (waited < maxWait) {
-          console.log(`Polling refreshed data (waited ${waited}ms)...`);
-          try {
-            const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-            const resp = await fetch(rawUrl);
-            if (!resp.ok) throw new Error(`Failed fetching refreshed data: ${resp.status}`);
-            const text = await resp.text();
-
-            if (text && text.trim().length > 100) {
-              newTableHTML = text;
-              break;
-            }
-            console.log("Data too short, retrying...");
-          } catch (fetchErr) {
-            console.warn("Fetch error for refreshed data:", fetchErr);
-          }
-          await new Promise(r => setTimeout(r, interval));
-          waited += interval;
-        }
-
-        if (!newTableHTML) {
-          statusText.textContent = "⚠️ Timed out waiting for refreshed data.";
-          console.warn("Timeout waiting for refreshed data.");
-          return;
-        }
-
-        // Update table container and add select-all checkbox
-        document.getElementById("tableContainer").innerHTML = newTableHTML;
-        addSelectAllControl();
-
-        // Now get last commit date for RefreshedData file from GitHub API
-        const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
-
-        try {
-          const commitResp = await fetch(commitsUrl);
-          if (!commitResp.ok) throw new Error(`GitHub commits API error: ${commitResp.status}`);
-          const commitsJson = await commitResp.json();
-
-          if (commitsJson.length > 0) {
-            const lastDateISO = commitsJson[0].commit.author.date;
-            const lastDateStr = toHST(lastDateISO);
-            statusText.textContent = `✅ Table refreshed! Last update on ${lastDateStr}`;
-            console.log("Last update date:", lastDateStr);
-          } else {
-            statusText.textContent = `✅ Table refreshed! Last update date unknown`;
-            console.warn("No commits found for file.");
-          }
-        } catch (err) {
-          statusText.textContent = `✅ Table refreshed! Could not get last update time`;
-          console.error("Error fetching commit info:", err);
-        }
-
-      } catch (err) {
-        statusText.textContent = `❌ Refresh failed: ${err.message}`;
-        console.error("Error during refresh:", err);
-      }
-    }
-
     document.getElementById("refreshBtn").onclick = refreshTable;
   </script>
 </body>
