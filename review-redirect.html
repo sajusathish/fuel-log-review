@@ -45,7 +45,7 @@
       background: white;
       padding: 10px;
       width: 90vw;
-      max-height: 55vh;
+      max-width: 1200px;
     }
     /* Table styles */
     table {
@@ -332,19 +332,19 @@
         return;
       }
 
-      const webhookUrl = https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)};
+      const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
 
-      statusText.textContent = Submitting ${status}...;
+      statusText.textContent = `Submitting ${status}...`;
       statusText.classList.add("loading");
       toggleButtonsDisabled(true);
 
       try {
         const response = await fetch(webhookUrl, { method: 'GET' });
         if (!response.ok) throw new Error("Webhook call failed");
-        statusText.textContent = ✅ ${status} request sent successfully!;
+        statusText.textContent = `✅ ${status} request sent successfully!`;
       } catch (error) {
         console.error("Error submitting response:", error);
-        statusText.textContent = ❌ Error: ${error.message};
+        statusText.textContent = `❌ Error: ${error.message}`;
       } finally {
         toggleButtonsDisabled(false);
       }
@@ -373,10 +373,10 @@
       const response = await fetch(commitsUrl, {
         cache: "no-store",
         headers: {
-          'Authorization': token ${GITHUB_PAT}
+          'Authorization': `token ${GITHUB_PAT}`
         }
       });
-      if (!response.ok) throw new Error(GitHub commits API error: ${response.status});
+      if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
       const commitsJson = await response.json();
       if (commitsJson.length === 0) throw new Error("No commits found for file");
       return commitsJson[0].commit.author.date;
@@ -384,18 +384,13 @@
 
     // Fetch the updated table HTML from GitHub raw URL
     async function fetchLatestTableHTML() {
-    const rawUrl = https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()};
-    const response = await fetch(rawUrl, {
-      cache: "no-store"
-    });
-    
-    if (!response.ok) throw new Error(Failed fetching refreshed data: ${response.status});
-    
-    // Ignore last-modified or any cache header
-    const text = await response.text();
-    if (text.trim().length < 10) throw new Error("Refreshed data too short");
-    return text;
-  }
+      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      const response = await fetch(rawUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+      const text = await response.text();
+      if (text.trim().length < 10) throw new Error("Refreshed data too short");
+      return text;
+    }
 
     // Get number of rows in a table HTML string
     function countRowsInHTMLTable(html) {
@@ -435,17 +430,17 @@
               addColumnResizers();
 
               if (latestTimestamp !== initialTimestamp && newRows !== currentRows) {
-                statusText.textContent = ✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)};
+                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
                 resolve(true);
               } else {
-                statusText.textContent = ⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)};
+                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
                 resolve(false);
               }
               toggleButtonsDisabled(false);
             }
           } catch (err) {
             clearInterval(pollingInterval);
-            statusText.textContent = ❌ Polling error: ${err.message};
+            statusText.textContent = `❌ Polling error: ${err.message}`;
             toggleButtonsDisabled(false);
             resolve(false);
           }
@@ -456,7 +451,7 @@
     // Main refresh function triggered by Refresh button
     async function refreshTable() {
       const statusText = document.getElementById("statusText");
-      statusText.textContent = Triggering refresh...;
+      statusText.textContent = `Triggering refresh...`;
       statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
       toggleButtonsDisabled(true);
 
@@ -465,16 +460,16 @@
           method: "GET",
           cache: "no-store"
         });
-        if (!webhookResp.ok) throw new Error(Webhook trigger failed with status ${webhookResp.status});
+        if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
         const currentTimestamp = await fetchLatestCommitTimestamp();
 
-        statusText.textContent = Waiting for updated data...;
+        statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
         await pollForUpdate(currentTimestamp);
       } catch (err) {
-        statusText.textContent = ❌ Refresh failed: ${err.message};
+        statusText.textContent = `❌ Refresh failed: ${err.message}`;
         toggleButtonsDisabled(false);
       }
     }
