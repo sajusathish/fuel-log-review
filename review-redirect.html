@@ -63,6 +63,18 @@
       return url.searchParams.get(key);
     }
 
+    function parseUpdatedTimestamp(htmlText) {
+      const match = htmlText.match(/<!--Updated:\s*(.*?)-->/);
+      return match ? new Date(match[1]) : null;
+    }
+
+    function convertToHST(dateObj) {
+      const hstOffsetMs = 10 * 60 * 60 * 1000; // HST = UTC-10
+      const utcTime = dateObj.getTime();
+      const hstDate = new Date(utcTime - hstOffsetMs);
+      return hstDate.toISOString().replace("T", " ").substring(0, 19) + " HST";
+    }
+
     document.getElementById("todayDate").innerText = new Date().toISOString().split("T")[0];
 
     const statusText = document.getElementById("statusText");
@@ -71,33 +83,30 @@
     const approveBtn = document.getElementById("approveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
+    let lastUpdatedTime = null;
+    let pollingInterval = null;
+    let pollingTimeout = null;
+
+    // Load table from ?data= param on first load
     const base64Data = getQueryParam("data");
     if (base64Data) {
       try {
         const htmlContent = atob(base64Data);
         tableContainer.innerHTML = htmlContent;
+
+        const timestamp = parseUpdatedTimestamp(htmlContent);
+        if (timestamp) {
+          lastUpdatedTime = timestamp;
+          statusText.innerHTML = `✅ Loaded from URL. Last update: ${convertToHST(timestamp)}`;
+        } else {
+          statusText.innerHTML = `⚠️ Loaded table, but no timestamp found.`;
+        }
       } catch (e) {
-        tableContainer.innerHTML = "<p style='color:red'>⚠️ Failed to decode data.</p>";
+        tableContainer.innerHTML = "<p style='color:red'>⚠️ Failed to decode base64 HTML.</p>";
       }
     } else {
-      tableContainer.innerHTML = "<p style='color:gray'>⚠️ No data provided.</p>";
+      tableContainer.innerHTML = "<p style='color:gray'>⚠️ No table data provided in URL.</p>";
     }
-
-    function parseUpdatedTimestamp(htmlText) {
-      const match = htmlText.match(/<!--Updated:\s*(.*?)-->/);
-      return match ? new Date(match[1]) : null;
-    }
-
-    function convertToHST(dateObj) {
-      const hstOffsetMs = 10 * 60 * 60 * 1000; // HST is UTC-10
-      const utcTime = dateObj.getTime();
-      const hstDate = new Date(utcTime - hstOffsetMs);
-      return hstDate.toISOString().replace("T", " ").substring(0, 19) + " HST";
-    }
-
-    let lastUpdatedTime = null;
-    let pollingInterval = null;
-    let pollingTimeout = null;
 
     function startPollingForUpdate() {
       let elapsed = 0;
@@ -106,30 +115,22 @@
       pollingInterval = setInterval(() => {
         elapsed += 3;
 
-        console.log("Polling... elapsed:", elapsed);
         fetch('https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData')
           .then(res => res.text())
           .then(html => {
             const newTime = parseUpdatedTimestamp(html);
 
-            if (!newTime) {
-              console.warn("No timestamp found.");
-              return;
-            }
-
-            console.log("Fetched timestamp:", newTime.toISOString());
+            if (!newTime) return;
 
             if (!lastUpdatedTime || newTime.getTime() !== lastUpdatedTime.getTime()) {
-              console.log("New update detected!");
               lastUpdatedTime = newTime;
               clearInterval(pollingInterval);
               clearTimeout(pollingTimeout);
               tableContainer.innerHTML = html;
               statusText.innerHTML = `✅ Table refreshed! Last update on ${convertToHST(newTime)}`;
-            } else {
-              console.log("No update detected.");
             }
-          }).catch(err => {
+          })
+          .catch(err => {
             console.error("Polling error:", err);
           });
 
@@ -142,8 +143,8 @@
     }
 
     refreshBtn.onclick = () => {
-      const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
-      if (formIds.length === 0) {
+      const selected = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
+      if (selected.length === 0) {
         statusText.innerHTML = "⚠️ Please select at least one form.";
         return;
       }
@@ -153,7 +154,6 @@
 
       fetch(refreshUrl)
         .then(() => {
-          console.log("Triggered Workato refresh webhook:", refreshUrl);
           startPollingForUpdate();
         })
         .catch(err => {
@@ -163,22 +163,24 @@
     };
 
     function submitAction(action) {
-      const formIds = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
+      const selected = [...document.querySelectorAll("input[name='selectForm']:checked")].map(i => i.value);
       const reviewer = getQueryParam("Reviewer") || "unknown";
-      if (formIds.length === 0) {
+
+      if (selected.length === 0) {
         statusText.innerHTML = "⚠️ Please select at least one form.";
         return;
       }
 
+      const submitUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${action}&Reviewer=${reviewer}&Form_Ids=${encodeURIComponent(selected.join(","))}`;
       statusText.innerHTML = `<span class='loader'></span> Submitting ${action}...`;
 
-      fetch(`https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${action}&Reviewer=${reviewer}&Form_Ids=${encodeURIComponent(formIds.join(","))}`)
+      fetch(submitUrl)
         .then(res => res.text())
         .then(text => {
-          statusText.innerHTML = "✅ Response submitted: " + text;
+          statusText.innerHTML = `✅ Response submitted: ${text}`;
         })
         .catch(err => {
-          console.error("Submit error", err);
+          console.error("Submit error:", err);
           statusText.innerHTML = "❌ Failed to submit response.";
         });
     }
