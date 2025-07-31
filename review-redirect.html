@@ -37,34 +37,34 @@
       max-width: 1200px;
       user-select: none; /* Prevent selection on header */
     }
-    /* Table container fills remaining space */
+    /* Table container now has fixed dimensions for scrolling */
     #tableContainer {
-      flex-grow: 1;
-      overflow-x: auto;
+      width: 90vw; /* 90% of viewport width */
+      max-width: 1200px; /* Max width for larger screens */
+      height: calc(100vh - 200px); /* Adjust this value based on your header/button heights */
+      overflow: auto; /* Enables both vertical and horizontal scrollbars as needed */
       border-radius: 8px;
       box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
       background: white;
       padding: 10px;
-      width: 90vw;
-      max-width: 1200px;
     }
     /* Table styles */
     table {
-      width: 100%;
+      width: 100%; /* Table takes 100% of the container's width */
+      min-width: fit-content; /* Allows table to expand beyond 100% if content is wide, enabling horizontal scroll */
       border-collapse: collapse;
       background: #fff;
       box-shadow: 0 4px 15px rgb(0 0 0 / 0.08);
       border-radius: 8px;
-      overflow: hidden;
+      overflow: hidden; /* This overflow is for the table's own content (like rounded corners) */
       font-size: 14px;
-      table-layout: fixed; /* For resizing */
-      /* Removed user-select: none; from here to allow cell selection */
+      /* table-layout: fixed; is removed to allow columns to size to content for horizontal scroll */
     }
     thead tr {
       background-color: #34495e;
       color: #ecf0f1;
       font-weight: 600;
-      user-select: none; /* Keep user-select: none on header row */
+      user-select: none;
     }
     th, td {
       padding: 12px 15px;
@@ -75,7 +75,6 @@
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
-      /* For td, default user-select will allow copying */
     }
     tbody tr:nth-child(even) {
       background-color: #f4f7fa;
@@ -91,7 +90,7 @@
       width: 7px;
       height: 100%;
       cursor: col-resize;
-      user-select: none; /* Prevent selection on handle */
+      user-select: none;
       z-index: 10;
     }
     /* Buttons container */
@@ -124,7 +123,7 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      user-select: none; /* Prevent selection on buttons */
+      user-select: none;
     }
     button:hover:not(:disabled) {
       box-shadow: 0 6px 15px rgb(0 0 0 / 0.25);
@@ -163,7 +162,7 @@
       font-weight: 600;
       min-height: 24px;
       color: #34495e;
-      user-select: none; /* Prevent selection on status text */
+      user-select: none;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -321,7 +320,7 @@
       document.getElementById("rejectBtn").disabled = disabled;
     }
 
-    // Handle approve/reject button click (RESTORED ASYNC AND BUTTON DISABLING)
+    // Handle approve/reject button click
     async function handleDecision(status) {
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
@@ -331,16 +330,14 @@
         return;
       }
 
-      // Ensure the correct parameter name 'Form_Ids' is used as per your Workato webhook
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
 
       statusText.textContent = `Submitting ${status}...`;
-      toggleButtonsDisabled(true); // Disable buttons during submission
+      toggleButtonsDisabled(true);
 
       try {
         const response = await fetch(webhookUrl, { method: 'GET' });
         if (!response.ok) {
-          // If response is not ok, read the response text to get more details if available
           const errorDetail = await response.text();
           throw new Error(`Webhook call failed with status ${response.status}: ${errorDetail}`);
         }
@@ -349,7 +346,7 @@
         console.error("Error submitting response:", error);
         statusText.textContent = `❌ Error: ${error.message}`;
       } finally {
-        toggleButtonsDisabled(false); // Re-enable buttons after submission (success or failure)
+        toggleButtonsDisabled(false);
       }
     }
 
@@ -364,11 +361,9 @@
       if (!table) return new Set();
 
       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-      // Corrected to explicitly look for "Form ID"
       const formIdIndex = headers.indexOf('Form ID'); 
 
       if (formIdIndex === -1) {
-        // console.warn("Form ID column not found in table headers."); // Keep this for debugging if needed
         return new Set();
       }
 
@@ -376,7 +371,6 @@
       const rows = table.querySelectorAll('tbody tr');
       rows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        // Ensure the cell exists at the given index before trying to access textContent
         if (cells[formIdIndex]) {
           formIds.add(cells[formIdIndex].textContent.trim());
         }
@@ -449,7 +443,6 @@
       toggleButtonsDisabled(true);
 
       try {
-        // Trigger your Workato webhook as before
         const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
           method: "GET",
           cache: "no-store"
@@ -459,7 +452,6 @@
           throw new Error(`Webhook trigger failed with status ${webhookResp.status}: ${errorDetail}`);
         }
 
-        // Get initial Form_IDs from the currently displayed table
         const currentTableHTML = document.getElementById("tableContainer").innerHTML;
         const initialFormIds = getFormIdsFromTableHTML(currentTableHTML);
 
