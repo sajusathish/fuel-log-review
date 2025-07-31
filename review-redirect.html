@@ -204,9 +204,6 @@
   <div id="statusText" aria-live="polite" role="status"></div>
 
   <script>
-    // Your GitHub Personal Access Token - keep private if possible!
-    const GITHUB_PAT = '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';
-
     // Helper to decode Base64 URL-safe
     function base64UrlDecode(input) {
       try {
@@ -367,19 +364,14 @@
       }) + ' HST';
     }
 
-    // Fetch latest commit timestamp from GitHub API with token
-    async function fetchLatestCommitTimestamp() {
-      const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
-      const response = await fetch(commitsUrl, {
-        cache: "no-store",
-        headers: {
-          'Authorization': `token ${GITHUB_PAT}`
-        }
-      });
-      if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
-      const commitsJson = await response.json();
-      if (commitsJson.length === 0) throw new Error("No commits found for file");
-      return commitsJson[0].commit.author.date;
+    // --- New: Fetch Last-Modified header from raw file ---
+    async function fetchLastModifiedRawFile() {
+      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      const response = await fetch(rawUrl, { method: 'HEAD', cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed fetching file HEAD: ${response.status}`);
+      const lastModified = response.headers.get('Last-Modified');
+      if (!lastModified) throw new Error("No Last-Modified header found");
+      return new Date(lastModified).toISOString();
     }
 
     // Fetch the updated table HTML from GitHub raw URL
@@ -403,9 +395,9 @@
       return tbody.rows.length;
     }
 
-    // Poll every 7 seconds for up to 70 seconds for updated commit timestamp
+    // Poll every 7 seconds for up to 70 seconds for updated Last-Modified header
     let pollingInterval;
-    async function pollForUpdate(initialTimestamp) {
+    async function pollForUpdate(initialLastModified) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
       const maxAttempts = 10; // 7s * 10 = 70 seconds max
@@ -414,8 +406,8 @@
         pollingInterval = setInterval(async () => {
           attempts++;
           try {
-            const latestTimestamp = await fetchLatestCommitTimestamp();
-            if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
+            const latestLastModified = await fetchLastModifiedRawFile();
+            if (latestLastModified !== initialLastModified || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
               const newTableHTML = await fetchLatestTableHTML();
 
@@ -429,11 +421,11 @@
               addSelectAllControl();
               addColumnResizers();
 
-              if (latestTimestamp !== initialTimestamp && newRows !== currentRows) {
-                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
+              if (latestLastModified !== initialLastModified && newRows !== currentRows) {
+                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestLastModified)}`;
                 resolve(true);
               } else {
-                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
+                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestLastModified)}`;
                 resolve(false);
               }
               toggleButtonsDisabled(false);
@@ -456,18 +448,19 @@
       toggleButtonsDisabled(true);
 
       try {
+        // Trigger your Workato webhook as before
         const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
           method: "GET",
           cache: "no-store"
         });
         if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
-        const currentTimestamp = await fetchLatestCommitTimestamp();
+        const currentLastModified = await fetchLastModifiedRawFile();
 
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
-        await pollForUpdate(currentTimestamp);
+        await pollForUpdate(currentLastModified);
       } catch (err) {
         statusText.textContent = `❌ Refresh failed: ${err.message}`;
         toggleButtonsDisabled(false);
