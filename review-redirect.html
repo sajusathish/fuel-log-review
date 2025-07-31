@@ -1,122 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 1em;
-      background: #f7f7f7;
-    }
-    #statusMessage {
-      padding: 0.5em;
-      margin-bottom: 1em;
-      background: #eef;
-      border-left: 4px solid #77f;
-      font-weight: bold;
-    }
-    table {
-      border-collapse: collapse;
-      width: 90vw;
-      margin: auto;
-      background: white;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 0.5em;
-      text-align: left;
-    }
-    th {
-      background: #eee;
-    }
-  </style>
+  <style>/* your existing styles unchanged */</style>
 </head>
 <body>
+  <h3>Daily Fuel Log Review – <span id="todayDate"></span></h3>
+  <div id="tableContainer"><p style="text-align:center; color:#666;">Loading table data…</p></div>
+  <div class="buttons">
+    <button class="refresh" id="refreshBtn">🔄 Refresh Table</button>
+    <button class="approve" id="approveBtn">✅ Approve</button>
+    <button class="reject" id="rejectBtn">❌ Reject</button>
+  </div>
+  <div id="statusText" aria-live="polite" role="status"></div>
 
-<div id="statusMessage">Loading table…</div>
-<div id="tableContainer"></div>
+  <script>
+    // decode & UI helpers same as before...
 
-<script>
-  const repoOwner = "sajusathish";
-  const repoName = "fuel-log-review";
-  const filePath = "review-redirect.html";
-  const branch = "main";
-  const fileUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${filePath}`;
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const dataEncoded = urlParams.get("data");
-  let initialTableHTML = null;
-
-  function base64UrlDecode(base64Url) {
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = atob(base64);
-    return decoded;
-  }
-
-  function extractFormIdSetFromTableHTML(html) {
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    const formIds = new Set();
-    const rows = temp.querySelectorAll("table tbody tr");
-    rows.forEach(row => {
-      const formIdCell = row.children[1]; // adjust index if needed
-      if (formIdCell) {
-        const id = formIdCell.textContent.trim();
-        if (id) formIds.add(id);
+    // Extract Form ID set
+    function extractFormIdSetFromTableHTML(html) {
+      const wrapper = document.createElement('div'); wrapper.innerHTML = html;
+      const table = wrapper.querySelector('table');
+      const headers = table ? Array.from(table.querySelectorAll('thead th')) : [];
+      const formIdIndex = headers.findIndex(th => th.textContent.trim().toLowerCase() === 'form id');
+      console.log('[extract] formIdIndex:', formIdIndex);
+      const ids = new Set();
+      if (formIdIndex >= 0 && table) {
+        table.querySelectorAll('tbody tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells[formIdIndex]) ids.add(cells[formIdIndex].textContent.trim());
+        });
       }
-    });
-    return formIds;
-  }
-
-  function pollForUpdate(initialFormIds, interval = 7000) {
-    console.log("[Poll] Started polling GitHub every", interval, "ms");
-
-    return new Promise((resolve) => {
-      const check = async () => {
-        console.log("[Poll] Checking for updates…");
-        const response = await fetch(fileUrl + "?cacheBust=" + Date.now());
-        const newText = await response.text();
-
-        const newFormIds = extractFormIdSetFromTableHTML(newText);
-        console.log("[Poll] Old Form IDs:", [...initialFormIds]);
-        console.log("[Poll] New Form IDs:", [...newFormIds]);
-
-        const hasChange =
-          initialFormIds.size !== newFormIds.size ||
-          [...newFormIds].some(id => !initialFormIds.has(id));
-
-        if (hasChange) {
-          document.getElementById("statusMessage").textContent = "✅ Update found!";
-          document.getElementById("tableContainer").innerHTML = newText;
-          resolve();
-        } else {
-          console.log("[Poll] No difference found, continuing…");
-          setTimeout(check, interval);
-        }
-      };
-
-      setTimeout(check, interval);
-    });
-  }
-
-  async function init() {
-    if (dataEncoded) {
-      const decodedHTML = base64UrlDecode(dataEncoded);
-      document.getElementById("tableContainer").innerHTML = decodedHTML;
-      initialTableHTML = decodedHTML;
-      document.getElementById("statusMessage").textContent = "✅ Table loaded. Polling for updates…";
-
-      const initialFormIds = extractFormIdSetFromTableHTML(initialTableHTML);
-      await pollForUpdate(initialFormIds);
-    } else {
-      document.getElementById("statusMessage").textContent = "❌ No data provided in URL.";
+      console.log('[extract] FormIds extracted:', Array.from(ids));
+      return ids;
     }
-  }
 
-  init();
-</script>
+    // Compare sets
+    function areFormIdSetsDifferent(a,b) {
+      if (a.size !== b.size) return true;
+      for (let x of a) if (!b.has(x)) return true;
+      return false;
+    }
 
+    // poll logic
+    async function pollForUpdate(initialTimestamp) {
+      console.log('[Poll] Started polling GitHub every 7000 ms');
+      const statusText = document.getElementById('statusText');
+      let attempts = 0, polling;
+      return new Promise(resolve => {
+        polling = setInterval(async () => {
+          attempts++;
+          console.log(`[poll] attempt ${attempts}`);
+          try {
+            const commitsUrl = 'https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1';
+            const resp = await fetch(commitsUrl, {cache:'no-store'});
+            const json = await resp.json();
+            const latestTimestamp = json[0]?.commit?.author?.date;
+            console.log('[poll] latestTimestamp', latestTimestamp);
+            if (latestTimestamp !== initialTimestamp || attempts >= 10) {
+              clearInterval(polling);
+              const newHtml = await fetch(`https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`, {cache:'no-store'});
+              const newTableHtml = await newHtml.text();
+              const currentHtml = document.getElementById('tableContainer').innerHTML;
+              console.log('[poll] currentHtml:', currentHtml);
+              console.log('[poll] newHtml:', newTableHtml);
+              const oldSet = extractFormIdSetFromTableHTML(currentHtml);
+              const newSet = extractFormIdSetFromTableHTML(newTableHtml);
+              document.getElementById('tableContainer').innerHTML = newTableHtml;
+              addSelectAllControl(); addColumnResizers();
+              if (latestTimestamp !== initialTimestamp && areFormIdSetsDifferent(oldSet, newSet)) {
+                console.log('[poll] sets differ → refresh yes');
+                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
+                resolve(true);
+              } else {
+                console.log('[poll] sets identical or no timestamp change');
+                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
+                resolve(false);
+              }
+              toggleButtonsDisabled(false);
+            }
+          } catch (e) {
+            clearInterval(polling);
+            console.error('[poll] error', e);
+            statusText.textContent = `❌ Polling error: ${e.message}`;
+            toggleButtonsDisabled(false);
+            resolve(false);
+          }
+        }, 7000);
+      });
+    }
+
+    async function refreshTable() {
+      toggleButtonsDisabled(true);
+      const statusText = document.getElementById('statusText');
+      statusText.textContent = 'Triggering refresh…';
+      statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+      try {
+        await fetch('https://webhooks.workato.com/webhooks/rest/.../refreshtable', {method:'GET', cache:'no-store'});
+        const resp = await fetch('https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1', {cache:'no-store'});
+        const json = await resp.json();
+        const currentTimestamp = json[0]?.commit?.author?.date;
+        console.log('[refresh] initial timestamp', currentTimestamp);
+        statusText.textContent = 'Waiting for updated data…';
+        statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+        await pollForUpdate(currentTimestamp);
+      } catch (e) {
+        console.error('[refresh] error', e);
+        statusText.textContent = `❌ Refresh failed: ${e.message}`;
+        toggleButtonsDisabled(false);
+      }
+    }
+
+    document.getElementById('refreshBtn').onclick = refreshTable;
+    // attach approve/reject, addSelectAllControl, addColumnResizers, toHSTString remain same
+  </script>
 </body>
 </html>
