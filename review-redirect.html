@@ -8,20 +8,40 @@
     * {
       box-sizing: border-box;
     }
-    body {
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 40px auto;
-      max-width: 960px;
       background: #f9fafb;
       color: #222;
       line-height: 1.5;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      padding: 20px;
     }
     h3 {
       text-align: center;
-      margin-bottom: 25px;
+      margin-bottom: 15px;
       font-weight: 700;
       color: #2c3e50;
       font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    /* Table container fills remaining space */
+    #tableContainer {
+      flex-grow: 1;
+      overflow-x: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
+      background: white;
+      padding: 10px;
+      width: 100vw;
     }
     /* Table styles */
     table {
@@ -32,7 +52,7 @@
       border-radius: 8px;
       overflow: hidden;
       font-size: 14px;
-      table-layout: fixed; /* For resizing to work */
+      table-layout: fixed; /* For resizing */
       user-select: none;
     }
     thead tr {
@@ -46,7 +66,7 @@
       text-align: center;
       border-bottom: 1px solid #ddd;
       vertical-align: middle;
-      position: relative; /* For resize handle */
+      position: relative;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -70,12 +90,13 @@
     }
     /* Buttons container */
     .buttons {
-      margin-top: 30px;
+      margin-top: 15px;
       text-align: center;
       display: flex;
       justify-content: center;
       gap: 20px;
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
     /* Common button style */
     button {
@@ -128,7 +149,7 @@
     }
     /* Status text */
     #statusText {
-      margin-top: 25px;
+      margin-top: 15px;
       text-align: center;
       font-size: 16px;
       font-weight: 600;
@@ -139,6 +160,7 @@
       justify-content: center;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
     }
     /* Loader spinner */
     .loader {
@@ -154,14 +176,6 @@
     @keyframes spin {
       0% { transform: rotate(0deg);}
       100% { transform: rotate(360deg);}
-    }
-    /* Table scrollbar for small screens */
-    #tableContainer {
-      overflow-x: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
-      background: white;
-      padding: 10px;
     }
   </style>
 </head>
@@ -362,6 +376,17 @@
       return text;
     }
 
+    // Get number of rows in a table HTML string
+    function countRowsInHTMLTable(html) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      const table = wrapper.querySelector('table');
+      if (!table) return 0;
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return 0;
+      return tbody.rows.length;
+    }
+
     // Poll every 3 seconds for up to 30 seconds for updated commit timestamp
     let pollingInterval;
     async function pollForUpdate(initialTimestamp) {
@@ -374,22 +399,28 @@
           attempts++;
           try {
             const latestTimestamp = await fetchLatestCommitTimestamp();
-
             if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
               const newTableHTML = await fetchLatestTableHTML();
+
+              // Compare row counts
+              const currentTableHTML = document.getElementById("tableContainer").innerHTML;
+              const currentRows = countRowsInHTMLTable(currentTableHTML);
+              const newRows = countRowsInHTMLTable(newTableHTML);
+
+              // Update table with new HTML anyway
               document.getElementById("tableContainer").innerHTML = newTableHTML;
               addSelectAllControl();
               addColumnResizers();
 
-              if (latestTimestamp !== initialTimestamp) {
+              if (latestTimestamp !== initialTimestamp && newRows !== currentRows) {
                 statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
+                resolve(true);
               } else {
                 statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
+                resolve(false);
               }
-
               toggleButtonsDisabled(false);
-              resolve(latestTimestamp !== initialTimestamp);
             }
           } catch (err) {
             clearInterval(pollingInterval);
