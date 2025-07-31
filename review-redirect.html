@@ -292,14 +292,20 @@
     }
 
     // Fetch the updated table HTML from GitHub raw URL
-    async function fetchAndLoadTable() {
+    async function fetchLatestTableHTML() {
       const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
       const response = await fetch(rawUrl, { cache: "no-store" });
       if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
       const text = await response.text();
       if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      document.getElementById("tableContainer").innerHTML = text;
-      addSelectAllControl();
+      return text;
+    }
+
+    // Compare current table content with new table HTML, ignoring whitespace
+    function isTableContentDifferent(newHTML) {
+      const currentHTML = document.getElementById("tableContainer").innerHTML.trim().replace(/\s+/g, '');
+      const newTrimmed = newHTML.trim().replace(/\s+/g, '');
+      return currentHTML !== newTrimmed;
     }
 
     // Poll every 3 seconds for up to 30 seconds for updated commit timestamp
@@ -314,17 +320,40 @@
           attempts++;
           try {
             const latestTimestamp = await fetchLatestCommitTimestamp();
+
+            // Commit timestamp changed - update table
             if (latestTimestamp !== initialTimestamp) {
               clearInterval(pollingInterval);
-              await fetchAndLoadTable();
+              const newTableHTML = await fetchLatestTableHTML();
+              document.getElementById("tableContainer").innerHTML = newTableHTML;
+              addSelectAllControl();
               statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
               toggleButtonsDisabled(false);
               resolve(true);
-            } else if (attempts >= maxAttempts) {
+              return;
+            }
+
+            // On first attempt, check content difference and update if different
+            if (attempts === 1) {
+              const newTableHTML = await fetchLatestTableHTML();
+              if (isTableContentDifferent(newTableHTML)) {
+                clearInterval(pollingInterval);
+                document.getElementById("tableContainer").innerHTML = newTableHTML;
+                addSelectAllControl();
+                statusText.textContent = `✅ Table refreshed! (Content updated) Last update on ${toHSTString(latestTimestamp)}`;
+                toggleButtonsDisabled(false);
+                resolve(true);
+                return;
+              }
+            }
+
+            // No update found after max attempts
+            if (attempts >= maxAttempts) {
               clearInterval(pollingInterval);
-              statusText.textContent = `⚠️ No updates found after 30 seconds. Last update on ${toHSTString(latestTimestamp)}`;
+              statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
               toggleButtonsDisabled(false);
               resolve(false);
+              return;
             }
           } catch (err) {
             clearInterval(pollingInterval);
