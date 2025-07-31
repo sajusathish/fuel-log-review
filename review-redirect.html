@@ -248,70 +248,96 @@
 
     // Function to refresh table by triggering Workato webhook GET and then fetch new data from your GitHub raw file
     async function refreshTable() {
-      console.log("Refresh button clicked, triggering Workato webhook...");
+  console.log("Refresh button clicked, triggering Workato webhook...");
+  statusText.innerHTML = `Triggering refresh... <span class="loader"></span>`;
 
-      statusText.innerHTML = `Triggering refresh... <span class="loader"></span>`;
+  try {
+    const webhookResponse = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
+      method: "GET"
+    });
+
+    console.log("Workato webhook trigger response:", webhookResponse.status, webhookResponse.statusText);
+
+    if (!webhookResponse.ok) {
+      throw new Error(`Webhook trigger failed with status ${webhookResponse.status}`);
+    }
+
+    // Poll for new data
+    const maxWait = 5000;
+    const interval = 1000;
+    let waited = 0;
+    let newTableHTML = null;
+
+    while (waited < maxWait) {
+      console.log(`Polling for new table data... waited ${waited}ms`);
+
+      const rawDataUrl = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
 
       try {
-        const webhookResponse = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method: "GET"
-        });
+        const resp = await fetch(rawDataUrl + "?t=" + Date.now());
+        if (!resp.ok) throw new Error(`Failed to fetch refreshed data: ${resp.status}`);
 
-        console.log("Workato webhook trigger response:", webhookResponse.status, webhookResponse.statusText);
+        const text = await resp.text();
 
-        if (!webhookResponse.ok) {
-          throw new Error(`Webhook trigger failed with status ${webhookResponse.status}`);
-        }
-
-        // Wait up to 5 seconds, polling every 1 second for new data
-        const maxWait = 5000;
-        const interval = 1000;
-        let waited = 0;
-        let newTableHTML = null;
-
-        while (waited < maxWait) {
-          console.log(`Polling for new table data... waited ${waited}ms`);
-
-          // Fetch refreshed data raw html from your GitHub repo (raw file URL)
-          const rawDataUrl = "https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData";
-
-          try {
-            const resp = await fetch(rawDataUrl + "?t=" + Date.now());
-            if (!resp.ok) throw new Error(`Failed to fetch refreshed data: ${resp.status}`);
-
-            const text = await resp.text();
-
-            // Simple heuristic: if text is non-empty and different than current table
-            if (text && text.trim().length > 100) {
-              newTableHTML = text;
-              console.log("Fetched refreshed data.");
-              break;
-            } else {
-              console.log("Fetched data is empty or too small, retrying...");
-            }
-          } catch(fetchErr) {
-            console.warn("Error fetching refreshed data:", fetchErr);
-          }
-
-          await new Promise(r => setTimeout(r, interval));
-          waited += interval;
-        }
-
-        if (newTableHTML) {
-          document.getElementById("tableContainer").innerHTML = newTableHTML;
-          addSelectAllControl();
-          statusText.textContent = "✅ Table refreshed!";
-          console.log("Table refreshed with new data.");
+        if (text && text.trim().length > 100) {
+          newTableHTML = text;
+          console.log("Fetched refreshed data.");
+          break;
         } else {
-          statusText.textContent = "⚠️ Timed out waiting for refreshed data.";
-          console.warn("Timed out waiting for refreshed data.");
+          console.log("Fetched data is empty or too small, retrying...");
+        }
+      } catch(fetchErr) {
+        console.warn("Error fetching refreshed data:", fetchErr);
+      }
+
+      await new Promise(r => setTimeout(r, interval));
+      waited += interval;
+    }
+
+    if (newTableHTML) {
+      document.getElementById("tableContainer").innerHTML = newTableHTML;
+      addSelectAllControl();
+
+      // Now fetch GitHub file metadata for last update date
+      const apiUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/contents/RefreshedData";
+
+      try {
+        const metaResp = await fetch(apiUrl);
+        if (!metaResp.ok) throw new Error(`GitHub API error: ${metaResp.status}`);
+
+        const metaJson = await metaResp.json();
+
+        // The 'last modified' info is usually in 'commit' info - but in contents API we have 'sha' and 'git_url'
+        // To get commit date we can fetch the commit data or use 'last modified' from headers
+
+        // Quick approach: check metaResp.headers for last-modified
+        const lastModified = metaResp.headers.get("last-modified");
+
+        let displayDate = "unknown time";
+        if (lastModified) {
+          displayDate = new Date(lastModified).toLocaleString();
+        } else if (metaJson && metaJson.commit && metaJson.commit.author && metaJson.commit.author.date) {
+          displayDate = new Date(metaJson.commit.author.date).toLocaleString();
         }
 
-      } catch (err) {
-        console.error("Error during refresh:", err);
-        statusText.textContent = `❌ Refresh failed: ${err.message}`;
+        statusText.textContent = `✅ Table refreshed! Last update on ${displayDate}`;
+        console.log("Displayed last update time:", displayDate);
+
+      } catch (metaErr) {
+        console.warn("Failed to fetch last update date from GitHub API:", metaErr);
+        statusText.textContent = "✅ Table refreshed! (Could not get last update time)";
       }
+
+    } else {
+      statusText.textContent = "⚠️ Timed out waiting for refreshed data.";
+      console.warn("Timed out waiting for refreshed data.");
     }
+
+  } catch (err) {
+    console.error("Error during refresh:", err);
+    statusText.textContent = `❌ Refresh failed: ${err.message}`;
+  }
+}
 
     refreshBtn.addEventListener("click", refreshTable);
 
