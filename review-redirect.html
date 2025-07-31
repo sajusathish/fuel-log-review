@@ -332,7 +332,6 @@
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
 
       statusText.textContent = `Submitting ${status}...`;
-      statusText.classList.add("loading");
       toggleButtonsDisabled(true);
 
       try {
@@ -350,40 +349,6 @@
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
 
-    // Convert UTC ISO string to HST string
-    function toHSTString(utcString) {
-      const utcDate = new Date(utcString);
-      // HST is UTC-10
-      const hstMs = utcDate.getTime() - (10 * 60 * 60 * 1000);
-      const hstDate = new Date(hstMs);
-      return hstDate.toLocaleString('en-US', {
-        year: 'numeric', month: 'numeric', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false,
-        timeZone: 'UTC' // manual shift done
-      }) + ' HST';
-    }
-
-    // --- New: Fetch Last-Modified header from raw file ---
-    async function fetchLastModifiedRawFile() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { method: 'HEAD', cache: 'no-store' });
-      if (!response.ok) throw new Error(`Failed fetching file HEAD: ${response.status}`);
-      const lastModified = response.headers.get('Last-Modified');
-      if (!lastModified) throw new Error("No Last-Modified header found");
-      return new Date(lastModified).toISOString();
-    }
-
-    // Fetch the updated table HTML from GitHub raw URL
-    async function fetchLatestTableHTML() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      return text;
-    }
-
     // Get number of rows in a table HTML string
     function countRowsInHTMLTable(html) {
       const wrapper = document.createElement('div');
@@ -395,9 +360,29 @@
       return tbody.rows.length;
     }
 
-    // Poll every 7 seconds for up to 70 seconds for updated Last-Modified header
+    // Simple checksum function: compute a hash from a string (djb2)
+    function simpleHash(str) {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      }
+      return hash >>> 0;
+    }
+
+    // Fetch the file content and return its hash and content
+    async function fetchRawFileContentAndHash() {
+      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      const response = await fetch(rawUrl, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+      const text = await response.text();
+      if (text.trim().length < 10) throw new Error("Refreshed data too short");
+      const hash = simpleHash(text);
+      return { text, hash };
+    }
+
+    // Poll every 7 seconds for up to 70 seconds for updated content hash
     let pollingInterval;
-    async function pollForUpdate(initialLastModified) {
+    async function pollForUpdate(initialHash) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
       const maxAttempts = 10; // 7s * 10 = 70 seconds max
@@ -406,26 +391,26 @@
         pollingInterval = setInterval(async () => {
           attempts++;
           try {
-            const latestLastModified = await fetchLastModifiedRawFile();
-            if (latestLastModified !== initialLastModified || attempts >= maxAttempts) {
-              clearInterval(pollingInterval);
-              const newTableHTML = await fetchLatestTableHTML();
+            const { text: newText, hash: latestHash } = await fetchRawFileContentAndHash();
 
-              // Compare row counts
+            if (latestHash !== initialHash || attempts >= maxAttempts) {
+              clearInterval(pollingInterval);
+
+              // Compare row counts for UI feedback
               const currentTableHTML = document.getElementById("tableContainer").innerHTML;
               const currentRows = countRowsInHTMLTable(currentTableHTML);
-              const newRows = countRowsInHTMLTable(newTableHTML);
+              const newRows = countRowsInHTMLTable(newText);
 
-              // Update table with new HTML anyway
-              document.getElementById("tableContainer").innerHTML = newTableHTML;
+              // Update table
+              document.getElementById("tableContainer").innerHTML = newText;
               addSelectAllControl();
               addColumnResizers();
 
-              if (latestLastModified !== initialLastModified && newRows !== currentRows) {
-                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestLastModified)}`;
+              if (latestHash !== initialHash && newRows !== currentRows) {
+                statusText.textContent = `✅ Table refreshed!`;
                 resolve(true);
               } else {
-                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestLastModified)}`;
+                statusText.textContent = `⚠️ No updates found.`;
                 resolve(false);
               }
               toggleButtonsDisabled(false);
@@ -455,12 +440,13 @@
         });
         if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
-        const currentLastModified = await fetchLastModifiedRawFile();
+        // Get initial hash of the file
+        const { hash: initialHash } = await fetchRawFileContentAndHash();
 
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
-        await pollForUpdate(currentLastModified);
+        await pollForUpdate(initialHash);
       } catch (err) {
         statusText.textContent = `❌ Refresh failed: ${err.message}`;
         toggleButtonsDisabled(false);
