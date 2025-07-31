@@ -351,7 +351,7 @@
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
 
-    // Helper to get all Form_ID values from an HTML table string
+    // Helper to get all Form ID values from an HTML table string
     function getFormIdsFromTableHTML(html) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html;
@@ -359,11 +359,11 @@
       if (!table) return new Set();
 
       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-      // Corrected column name to 'Form ID'
-      const formIdIndex = headers.indexOf('Form ID');
+      // Corrected to explicitly look for "Form ID"
+      const formIdIndex = headers.indexOf('Form ID'); 
 
       if (formIdIndex === -1) {
-        console.warn("Form ID column not found in table headers.");
+        // console.warn("Form ID column not found in table headers."); // Keep this for debugging if needed
         return new Set();
       }
 
@@ -371,6 +371,7 @@
       const rows = table.querySelectorAll('tbody tr');
       rows.forEach(row => {
         const cells = row.querySelectorAll('td');
+        // Ensure the cell exists at the given index before trying to access textContent
         if (cells[formIdIndex]) {
           formIds.add(cells[formIdIndex].textContent.trim());
         }
