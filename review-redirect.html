@@ -332,6 +332,7 @@
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
 
       statusText.textContent = `Submitting ${status}...`;
+      statusText.classList.add("loading");
       toggleButtonsDisabled(true);
 
       try {
@@ -349,6 +350,63 @@
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
 
+    // Convert UTC ISO string to HST string
+    function toHSTString(utcString) {
+      const utcDate = new Date(utcString);
+      // HST is UTC-10
+      const hstMs = utcDate.getTime() - (10 * 60 * 60 * 1000);
+      const hstDate = new Date(hstMs);
+      return hstDate.toLocaleString('en-US', {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+        timeZone: 'UTC' // manual shift done
+      }) + ' HST';
+    }
+
+    // Fetch latest commit timestamp from GitHub commits API WITHOUT token, with debug logs
+    async function fetchLatestCommitTimestamp() {
+      const commitsUrl = "https://api.github.com/repos/sajusathish/fuel-log-review/commits?path=RefreshedData&page=1&per_page=1";
+      console.log("[fetchLatestCommitTimestamp] Fetching commits from:", commitsUrl);
+      try {
+        const response = await fetch(commitsUrl, { cache: "no-store" });
+        console.log("[fetchLatestCommitTimestamp] Response status:", response.status);
+        console.log("[fetchLatestCommitTimestamp] Response headers:", [...response.headers.entries()]);
+        if (!response.ok) throw new Error(`GitHub commits API error: ${response.status}`);
+
+        const commitsJson = await response.json();
+        console.log("[fetchLatestCommitTimestamp] Commit JSON:", commitsJson);
+
+        if (commitsJson.length === 0) throw new Error("No commits found for file");
+        console.log("[fetchLatestCommitTimestamp] Commit date:", commitsJson[0].commit.author.date);
+        return commitsJson[0].commit.author.date;
+      } catch (e) {
+        console.error("[fetchLatestCommitTimestamp] Error:", e);
+        throw e;
+      }
+    }
+
+    // Fetch the updated table HTML from GitHub raw URL with debug logs
+    async function fetchLatestTableHTML() {
+      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      console.log("[fetchLatestTableHTML] Fetching raw file from:", rawUrl);
+      try {
+        const response = await fetch(rawUrl, { cache: "no-store" });
+        console.log("[fetchLatestTableHTML] Response status:", response.status);
+        console.log("[fetchLatestTableHTML] Response headers:", [...response.headers.entries()]);
+        if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+
+        const text = await response.text();
+        console.log("[fetchLatestTableHTML] Raw text length:", text.length);
+
+        if (text.trim().length < 10) throw new Error("Refreshed data too short");
+        return text;
+      } catch (e) {
+        console.error("[fetchLatestTableHTML] Error:", e);
+        throw e;
+      }
+    }
+
     // Get number of rows in a table HTML string
     function countRowsInHTMLTable(html) {
       const wrapper = document.createElement('div');
@@ -360,29 +418,9 @@
       return tbody.rows.length;
     }
 
-    // Simple checksum function: compute a hash from a string (djb2)
-    function simpleHash(str) {
-      let hash = 5381;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) + str.charCodeAt(i);
-      }
-      return hash >>> 0;
-    }
-
-    // Fetch the file content and return its hash and content
-    async function fetchRawFileContentAndHash() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      const hash = simpleHash(text);
-      return { text, hash };
-    }
-
-    // Poll every 7 seconds for up to 70 seconds for updated content hash
+    // Poll every 7 seconds for up to 70 seconds for updated commit timestamp
     let pollingInterval;
-    async function pollForUpdate(initialHash) {
+    async function pollForUpdate(initialTimestamp) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
       const maxAttempts = 10; // 7s * 10 = 70 seconds max
@@ -390,33 +428,35 @@
       return new Promise((resolve) => {
         pollingInterval = setInterval(async () => {
           attempts++;
+          console.log(`[pollForUpdate] Poll attempt ${attempts}`);
           try {
-            const { text: newText, hash: latestHash } = await fetchRawFileContentAndHash();
+            const latestTimestamp = await fetchLatestCommitTimestamp();
+            console.log(`[pollForUpdate] Latest timestamp: ${latestTimestamp}, Initial timestamp: ${initialTimestamp}`);
 
-            if (latestHash !== initialHash || attempts >= maxAttempts) {
+            if (latestTimestamp !== initialTimestamp || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
+              const newTableHTML = await fetchLatestTableHTML();
 
-              // Compare row counts for UI feedback
               const currentTableHTML = document.getElementById("tableContainer").innerHTML;
               const currentRows = countRowsInHTMLTable(currentTableHTML);
-              const newRows = countRowsInHTMLTable(newText);
+              const newRows = countRowsInHTMLTable(newTableHTML);
 
-              // Update table
-              document.getElementById("tableContainer").innerHTML = newText;
+              document.getElementById("tableContainer").innerHTML = newTableHTML;
               addSelectAllControl();
               addColumnResizers();
 
-              if (latestHash !== initialHash && newRows !== currentRows) {
-                statusText.textContent = `✅ Table refreshed!`;
+              if (latestTimestamp !== initialTimestamp && newRows !== currentRows) {
+                statusText.textContent = `✅ Table refreshed! Last update on ${toHSTString(latestTimestamp)}`;
                 resolve(true);
               } else {
-                statusText.textContent = `⚠️ No updates found.`;
+                statusText.textContent = `⚠️ No updates found. Last update on ${toHSTString(latestTimestamp)}`;
                 resolve(false);
               }
               toggleButtonsDisabled(false);
             }
           } catch (err) {
             clearInterval(pollingInterval);
+            console.error("[pollForUpdate] Polling error:", err);
             statusText.textContent = `❌ Polling error: ${err.message}`;
             toggleButtonsDisabled(false);
             resolve(false);
@@ -433,27 +473,27 @@
       toggleButtonsDisabled(true);
 
       try {
-        // Trigger your Workato webhook as before
+        console.log("[refreshTable] Triggering Workato webhook");
         const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
           method: "GET",
           cache: "no-store"
         });
+        console.log("[refreshTable] Webhook response status:", webhookResp.status);
         if (!webhookResp.ok) throw new Error(`Webhook trigger failed with status ${webhookResp.status}`);
 
-        // Get initial hash of the file
-        const { hash: initialHash } = await fetchRawFileContentAndHash();
-
+        const currentTimestamp = await fetchLatestCommitTimestamp();
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
-        await pollForUpdate(initialHash);
+        await pollForUpdate(currentTimestamp);
       } catch (err) {
+        console.error("[refreshTable] Error:", err);
         statusText.textContent = `❌ Refresh failed: ${err.message}`;
         toggleButtonsDisabled(false);
       }
     }
 
-    document.getElementById("refreshBtn").onclick = refreshTable;
+    document.getElementById("refreshBtn").addEventListener("click", refreshTable);
   </script>
 </body>
 </html>
