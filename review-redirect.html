@@ -8,37 +8,39 @@
   <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_modern.min.css" rel="stylesheet">
 
   <style>
-    body {
-      margin: 20px;
+    html, body {
+      margin: 0; padding: 0; 
+      width: 100%; 
+      overflow-x: hidden; /* Prevent horizontal scroll */
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f9fafb;
       color: #222;
+      height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
     }
     h3 {
-      align-self: flex-start;
-      margin-bottom: 15px;
+      align-self: stretch;
+      margin: 20px;
       font-weight: 700;
       color: #2c3e50;
       font-size: 1.8rem;
       user-select: none;
     }
     #fuel-log-table {
-      width: 100vw;
-      max-width: 1200px;
-      height: 60vh;
+      width: 100vw; /* full viewport width */
+      height: 60vh; /* adjust height as needed */
+      box-sizing: border-box;
     }
     .buttons {
-      margin-top: 15px;
+      margin: 15px 20px 30px;
       display: flex;
       justify-content: center;
       gap: 20px;
       flex-wrap: wrap;
-      max-width: 1200px;
       width: 100vw;
+      max-width: none; /* no max width */
     }
     button {
       cursor: pointer;
@@ -80,17 +82,17 @@
       background-color: #922b21;
     }
     #statusText {
-      margin-top: 15px;
+      margin: 0 20px 30px;
       font-weight: 600;
       color: #34495e;
       user-select: none;
       min-height: 24px;
-      max-width: 1200px;
       width: 100vw;
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 8px;
+      max-width: none;
     }
     .loader {
       display: inline-block;
@@ -127,7 +129,6 @@
   <script>
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // Decode base64url to string
     function base64UrlDecode(input) {
       try {
         const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -139,7 +140,6 @@
       }
     }
 
-    // Parse HTML table string to array of objects
     function parseTableHTMLtoData(html){
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
@@ -159,8 +159,11 @@
       });
     }
 
-    // Get columns config for Tabulator from headers
     function getColumnsFromHeaders(headers){
+      // Do NOT include your own "select" column from data; instead, use Tabulator's rowSelection column
+      // Filter out any header named "Select" to avoid duplicate
+      const filteredHeaders = headers.filter(hdr => hdr.toLowerCase() !== 'select');
+
       return [{
         formatter:"rowSelection",
         titleFormatter:"rowSelection",
@@ -168,7 +171,7 @@
         headerSort:false,
         width:50,
         frozen:true,
-      }].concat(headers.map(hdr => ({
+      }].concat(filteredHeaders.map(hdr => ({
         title: hdr,
         field: hdr,
         headerFilter:"input",
@@ -197,7 +200,7 @@
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
             data: tableData,
-            layout:"fitDataStretch",
+            layout:"fitColumns",   // Fit columns to container width, no horizontal scroll
             movableColumns:true,
             resizableColumns:true,
             columns: columns,
