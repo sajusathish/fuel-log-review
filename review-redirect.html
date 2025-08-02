@@ -29,6 +29,7 @@
       user-select: none;
     }
     #fuel-log-table {
+      border: 2px solid blue;
       width: 100%; /
       height: 60vh; 
       box-sizing: border-box;
@@ -45,7 +46,7 @@
     button {
       cursor: pointer;
       border: none;
-      border-radius: 30px;
+      border-radius: 0px;
       padding: 12px 28px;
       font-size: 16px;
       font-weight: 600;
@@ -203,7 +204,7 @@
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
             data: tableData,
-            layout:"fitData",   
+            layout:"fitColumns",   
             movableColumns:true,
             resizableColumns:true,
             columns: columns,
