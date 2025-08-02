@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
-  <style>
+    <style>
     /* Reset and base */
     * {
       box-sizing: border-box;
@@ -27,22 +27,22 @@
       align-items: center;
     }
     h3 {
-      text-align: center;
+      text-align: left; /* changed from center */
       margin-bottom: 15px;
       font-weight: 700;
       color: #2c3e50;
       font-size: 1.8rem;
       flex-shrink: 0;
-      width: 90vw;
+      width: 100vw; /* changed from 90vw */
       max-width: 1200px;
-      user-select: none; /* Prevent selection on header */
+      user-select: none;
     }
-    /* Table container now has fixed dimensions for scrolling */
+    /* Table container now full width */
     #tableContainer {
-      width: 90vw; /* 90% of viewport width */
-      max-width: 1200px; /* Max width for larger screens */
-      height: calc(100vh - 200px); /* Adjust this value based on your header/button heights */
-      overflow: auto; /* Enables both vertical and horizontal scrollbars as needed */
+      width: 100vw; /* changed from 90vw */
+      max-width: 1200px;
+      height: calc(100vh - 200px);
+      overflow: auto;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
       background: white;
@@ -50,15 +50,14 @@
     }
     /* Table styles */
     table {
-      width: 100%; /* Table takes 100% of the container's width */
-      min-width: fit-content; /* Allows table to expand beyond 100% if content is wide, enabling horizontal scroll */
+      width: 100%; /* full width */
+      min-width: fit-content;
       border-collapse: collapse;
       background: #fff;
       box-shadow: 0 4px 15px rgb(0 0 0 / 0.08);
       border-radius: 8px;
-      overflow: hidden; /* This overflow is for the table's own content (like rounded corners) */
+      overflow: hidden;
       font-size: 14px;
-      /* table-layout: fixed; is removed to allow columns to size to content for horizontal scroll */
     }
     thead tr {
       background-color: #34495e;
@@ -68,7 +67,7 @@
     }
     th, td {
       padding: 12px 15px;
-      text-align: center;
+      text-align: left; /* changed from center */
       border-bottom: 1px solid #ddd;
       vertical-align: middle;
       position: relative;
@@ -102,7 +101,7 @@
       gap: 20px;
       flex-wrap: wrap;
       flex-shrink: 0;
-      width: 90vw;
+      width: 100vw; /* changed from 90vw */
       max-width: 1200px;
     }
     /* Common button style */
@@ -168,7 +167,7 @@
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
-      width: 90vw;
+      width: 100vw; /* changed from 90vw */
       max-width: 1200px;
     }
     /* Loader spinner */
