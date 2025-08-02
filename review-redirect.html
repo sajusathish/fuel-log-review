@@ -29,7 +29,7 @@
     #fuel-log-table {
       width: 100vw;
       max-width: 1200px;
-      height: 60vh; /* Adjust as needed */
+      height: 60vh;
     }
     .buttons {
       margin-top: 15px;
@@ -48,6 +48,7 @@
       font-size: 16px;
       font-weight: 600;
       color: white;
+      background-color: #2980b9;
       box-shadow: 0 4px 8px rgb(0 0 0 / 0.15);
       transition: background-color 0.3s ease, box-shadow 0.2s ease, transform 0.15s ease;
       display: inline-flex;
@@ -55,7 +56,6 @@
       justify-content: center;
       gap: 8px;
       user-select: none;
-      background-color: #2980b9;
     }
     button:hover:not(:disabled) {
       box-shadow: 0 6px 15px rgb(0 0 0 / 0.25);
@@ -112,7 +112,6 @@
 
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
 
-  <!-- Tabulator Table Placeholder -->
   <div id="fuel-log-table"></div>
 
   <div class="buttons">
@@ -123,30 +122,29 @@
 
   <div id="statusText" aria-live="polite" role="status"></div>
 
-  <!-- Tabulator JS -->
   <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 
   <script>
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // Decode base64 URL-safe encoded HTML to JSON array of objects
+    // Decode base64url to string
     function base64UrlDecode(input) {
       try {
         const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
         const decoded = atob(base64);
         return decodeURIComponent(escape(decoded));
-      } catch (e) {
-        console.error("Error decoding base64:", e);
+      } catch(e) {
+        console.error("Decode error", e);
         return null;
       }
     }
 
-    // Parse table HTML string into JSON data (rows/columns)
-    function parseTableHTMLtoData(html) {
+    // Parse HTML table string to array of objects
+    function parseTableHTMLtoData(html){
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
       const table = doc.querySelector("table");
-      if (!table) return [];
+      if(!table) return [];
 
       const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
       const rows = Array.from(table.querySelectorAll("tbody tr"));
@@ -154,65 +152,35 @@
       return rows.map(row => {
         const cells = Array.from(row.querySelectorAll("td"));
         let obj = {};
-        cells.forEach((cell, idx) => {
-          obj[headers[idx] || "col" + idx] = cell.textContent.trim();
-          // If checkbox in cell, use its value for selection column
-          const checkbox = cell.querySelector('input[type="checkbox"]');
-          if(checkbox && checkbox.name === 'selectForm') {
-            obj._selected = checkbox.checked;
-            obj._selectValue = checkbox.value;
-          }
+        cells.forEach((cell, i) => {
+          obj[headers[i] || `col${i}`] = cell.textContent.trim();
         });
         return obj;
       });
     }
 
-    // Initialize Tabulator Table with given data
-    let table;
-    function initTable(data, columns) {
-      table = new Tabulator("#fuel-log-table", {
-        data: data,
-        layout:"fitDataStretch",
-        movableColumns:true,
-        resizableColumns:true,
-        columns: columns,
-        pagination:false,
-        selectable:true,
-        selectableRangeMode:"click",
-        initialSort:[{column:columns[0].field, dir:"asc"}],
-      });
-    }
-
-    // Columns will be derived from headers, adding a select checkbox column first
-    function getColumnsFromHeaders(headers) {
-      // Insert a selection checkbox column at start
-      const cols = [{
+    // Get columns config for Tabulator from headers
+    function getColumnsFromHeaders(headers){
+      return [{
         formatter:"rowSelection",
         titleFormatter:"rowSelection",
         hozAlign:"center",
         headerSort:false,
         width:50,
         frozen:true,
-        cellClick:function(e, cell){
-          cell.getRow().toggleSelect();
-        }
-      }];
-
-      headers.forEach(hdr => {
-        cols.push({
-          title: hdr,
-          field: hdr,
-          headerFilter:"input",
-          headerSort:true,
-          resizable:true,
-          hozAlign:"left",
-          tooltip:true,
-        });
-      });
-      return cols;
+      }].concat(headers.map(hdr => ({
+        title: hdr,
+        field: hdr,
+        headerFilter:"input",
+        headerSort:true,
+        resizable:true,
+        hozAlign:"left",
+        tooltip:true,
+      })));
     }
 
-    // Get URL params
+    let table;
+
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
     const reviewer = params.get('reviewer') || 'unknown@domain.com';
@@ -224,34 +192,38 @@
         const doc = parser.parseFromString(tableHTML, "text/html");
         const tableElement = doc.querySelector("table");
         if(tableElement){
-          // Extract headers from table
           const headers = Array.from(tableElement.querySelectorAll("thead th")).map(th => th.textContent.trim());
           const tableData = parseTableHTMLtoData(tableHTML);
           const columns = getColumnsFromHeaders(headers);
-
-          initTable(tableData, columns);
+          table = new Tabulator("#fuel-log-table", {
+            data: tableData,
+            layout:"fitDataStretch",
+            movableColumns:true,
+            resizableColumns:true,
+            columns: columns,
+            selectable:true,
+            pagination:false,
+            selectableRangeMode:"click",
+            initialSort:[{column:columns[1].field, dir:"asc"}],
+          });
         } else {
-          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>Error: Table element not found.</p>";
+          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>No table found in data.</p>";
         }
       } else {
-        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>Error decoding table data.</p>";
+        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>Failed to decode data.</p>";
       }
     } else {
       document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray; text-align:center;'>No initial data provided.</p>";
     }
 
-    // Utility: get selected rows' form IDs from Tabulator data
     function getSelectedFormIds(){
       const selectedRows = table.getSelectedData();
-      // Try to find field named 'Form ID' or fallback to first column after selection
       if(!selectedRows.length) return "";
       if("Form ID" in selectedRows[0]){
         return selectedRows.map(r => r["Form ID"]).join(",");
-      } else {
-        // fallback to first data column field name
-        const keys = Object.keys(selectedRows[0]).filter(k => !k.startsWith("_"));
-        return selectedRows.map(r => r[keys[0]]).join(",");
       }
+      const keys = Object.keys(selectedRows[0]);
+      return selectedRows.map(r => r[keys[0]]).join(",");
     }
 
     function toggleButtonsDisabled(disabled){
@@ -270,17 +242,16 @@
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
-      try{
+      try {
         const response = await fetch(webhookUrl, { method: 'GET' });
         if(!response.ok){
-          const errorDetail = await response.text();
-          throw new Error(`Webhook call failed with status ${response.status}: ${errorDetail}`);
+          const errText = await response.text();
+          throw new Error(`Webhook call failed: ${errText}`);
         }
-        statusText.textContent = `✅ ${status} request sent successfully!`;
-      }catch(error){
-        console.error("Error submitting response:", error);
-        statusText.textContent = `❌ Error: ${error.message}`;
-      }finally{
+        statusText.textContent = `✅ ${status} sent successfully!`;
+      } catch(e) {
+        statusText.textContent = `❌ Error: ${e.message}`;
+      } finally {
         toggleButtonsDisabled(false);
       }
     }
@@ -289,34 +260,30 @@
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
 
     async function fetchRawFileContent(){
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, {cache:'no-store'});
-      if(!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if(text.trim().length < 10) throw new Error("Refreshed data too short");
-      return text;
+      const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      const resp = await fetch(url, {cache:'no-store'});
+      if(!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+      const txt = await resp.text();
+      if(txt.trim().length < 10) throw new Error("Refreshed data too short");
+      return txt;
     }
 
     async function refreshTable(){
       const statusText = document.getElementById("statusText");
       statusText.textContent = `Triggering refresh...`;
-      statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+      statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
       toggleButtonsDisabled(true);
 
       try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method:"GET",
-          cache:"no-store"
-        });
+        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {method:"GET",cache:"no-store"});
         if(!webhookResp.ok){
-          const errorDetail = await webhookResp.text();
-          throw new Error(`Webhook trigger failed with status ${webhookResp.status}: ${errorDetail}`);
+          const errTxt = await webhookResp.text();
+          throw new Error(`Webhook trigger failed: ${errTxt}`);
         }
 
         statusText.textContent = `Fetching updated data...`;
-        statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+        statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
 
-        // Poll once after 5s to fetch latest data from raw github file
         setTimeout(async () => {
           try {
             const newTableHTML = await fetchRawFileContent();
@@ -334,8 +301,8 @@
           }
         }, 5000);
 
-      } catch (err) {
-        statusText.textContent = `❌ Refresh failed: ${err.message}`;
+      } catch(e) {
+        statusText.textContent = `❌ Refresh failed: ${e.message}`;
         toggleButtonsDisabled(false);
       }
     }
