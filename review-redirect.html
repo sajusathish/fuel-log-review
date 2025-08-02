@@ -3,61 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
-    <style>
-    /* Reset and base */
+  <style>
     * {
       box-sizing: border-box;
     }
     html, body {
-      height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f9fafb;
       color: #222;
       line-height: 1.5;
+      width: 100%;
       overflow-x: hidden;
     }
     body {
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      width: 100vw;
-      padding: 20px;
-      align-items: center;
+      width: 100%;
     }
     h3 {
-      text-align: left; /* changed from center */
-      margin-bottom: 15px;
+      margin: 20px;
       font-weight: 700;
       color: #2c3e50;
       font-size: 1.8rem;
-      flex-shrink: 0;
-      width: 100vw; /* changed from 90vw */
-      max-width: 1200px;
       user-select: none;
+      text-align: left;
     }
-    /* Table container now full width */
-    #tableContainer {
-      width: 100vw; /* changed from 90vw */
-      max-width: 1200px;
-      height: calc(100vh - 200px);
-      overflow: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
-      background: white;
-      padding: 10px;
-    }
-    /* Table styles */
     table {
-      width: 100%; /* full width */
-      min-width: fit-content;
+      width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 4px 15px rgb(0 0 0 / 0.08);
-      border-radius: 8px;
-      overflow: hidden;
+      background: white;
       font-size: 14px;
+      border-radius: 0;
+      box-shadow: 0 4px 15px rgb(0 0 0 / 0.05);
     }
     thead tr {
       background-color: #34495e;
@@ -67,13 +46,11 @@
     }
     th, td {
       padding: 12px 15px;
-      text-align: left; /* changed from center */
+      text-align: left;
       border-bottom: 1px solid #ddd;
-      vertical-align: middle;
-      position: relative;
-      overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
+      overflow: hidden;
     }
     tbody tr:nth-child(even) {
       background-color: #f4f7fa;
@@ -81,7 +58,6 @@
     tbody tr:hover {
       background-color: #e1ecf7;
     }
-    /* Resize handle */
     th .resize-handle {
       position: absolute;
       right: 0;
@@ -92,19 +68,14 @@
       user-select: none;
       z-index: 10;
     }
-    /* Buttons container */
     .buttons {
       margin-top: 15px;
-      text-align: center;
       display: flex;
       justify-content: center;
       gap: 20px;
       flex-wrap: wrap;
-      flex-shrink: 0;
-      width: 100vw; /* changed from 90vw */
-      max-width: 1200px;
+      width: 100%;
     }
-    /* Common button style */
     button {
       cursor: pointer;
       border: none;
@@ -114,10 +85,7 @@
       font-weight: 600;
       color: white;
       box-shadow: 0 4px 8px rgb(0 0 0 / 0.15);
-      transition:
-        background-color 0.3s ease,
-        box-shadow 0.2s ease,
-        transform 0.15s ease;
+      transition: background-color 0.3s ease, box-shadow 0.2s ease, transform 0.15s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -134,7 +102,6 @@
       box-shadow: none;
       transform: none;
     }
-    /* Specific buttons */
     .refresh {
       background-color: #2980b9;
     }
@@ -153,24 +120,18 @@
     .reject:hover:not(:disabled) {
       background-color: #922b21;
     }
-    /* Status text */
     #statusText {
-      margin-top: 15px;
+      margin: 15px;
       text-align: center;
       font-size: 16px;
       font-weight: 600;
       min-height: 24px;
       color: #34495e;
-      user-select: none;
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 8px;
-      flex-shrink: 0;
-      width: 100vw; /* changed from 90vw */
-      max-width: 1200px;
     }
-    /* Loader spinner */
     .loader {
       display: inline-block;
       width: 18px;
@@ -191,7 +152,7 @@
 
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
 
-  <div id="tableContainer">
+  <div id="tableArea">
     <p style="text-align:center; color: #666;">Loading table data...</p>
   </div>
 
@@ -204,7 +165,6 @@
   <div id="statusText" aria-live="polite" role="status"></div>
 
   <script>
-    // Helper to decode Base64 URL-safe
     function base64UrlDecode(input) {
       try {
         const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -216,81 +176,62 @@
       }
     }
 
-    // Add select-all checkbox in the header cell with "select"
     function addSelectAllControl() {
       const table = document.querySelector("table");
       if (!table) return;
-
       const headerRow = table.querySelector("thead tr");
       if (!headerRow) return;
-
       const selectIndex = Array.from(headerRow.children).findIndex(th =>
         th.textContent.trim().toLowerCase() === "select"
       );
-
       if (selectIndex === -1) return;
-
       const selectAllTh = headerRow.children[selectIndex];
       const selectAllCheckbox = document.createElement("input");
       selectAllCheckbox.type = "checkbox";
       selectAllCheckbox.title = "Select/Deselect All";
-
       selectAllCheckbox.addEventListener("change", () => {
         const checkboxes = document.querySelectorAll("input[type='checkbox'][name='selectForm']");
         checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
       });
-
       selectAllTh.innerHTML = "";
       selectAllTh.appendChild(selectAllCheckbox);
     }
 
-    // Add resize handles to table headers and implement drag-to-resize
     function addColumnResizers() {
       const table = document.querySelector("table");
       if (!table) return;
-
       const thElements = table.querySelectorAll("thead th");
       thElements.forEach(th => {
-        // Remove old handles if any (to prevent duplicates)
         const oldHandle = th.querySelector(".resize-handle");
         if (oldHandle) oldHandle.remove();
-
         const handle = document.createElement("div");
         handle.className = "resize-handle";
         th.appendChild(handle);
-
         let startX, startWidth;
-
         handle.addEventListener('mousedown', e => {
           startX = e.pageX;
           startWidth = th.offsetWidth;
           document.body.style.cursor = 'col-resize';
-
           function onMouseMove(eMove) {
             const newWidth = startWidth + (eMove.pageX - startX);
             if (newWidth > 40) {
               th.style.width = newWidth + "px";
             }
           }
-
           function onMouseUp() {
             document.body.style.cursor = '';
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
           }
-
           window.addEventListener('mousemove', onMouseMove);
           window.addEventListener('mouseup', onMouseUp);
-
           e.preventDefault();
         });
       });
     }
 
-    // Display today's date in YYYY-MM-DD
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // Parse initial data from URL param and insert table
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
     const reviewer = params.get('reviewer') || 'unknown@domain.com';
@@ -298,14 +239,14 @@
     if (dataEncoded) {
       const tableHTML = base64UrlDecode(dataEncoded);
       if (tableHTML) {
-        document.getElementById("tableContainer").innerHTML = tableHTML;
+        document.getElementById("tableArea").innerHTML = tableHTML;
         addSelectAllControl();
         addColumnResizers();
       } else {
-        document.getElementById("tableContainer").innerHTML = "<p style='color:red; text-align:center;'>Error loading table data.</p>";
+        document.getElementById("tableArea").innerHTML = "<p style='color:red; text-align:center;'>Error loading table data.</p>";
       }
     } else {
-      document.getElementById("tableContainer").innerHTML = "<p style='color:gray; text-align:center;'>No initial data provided.</p>";
+      document.getElementById("tableArea").innerHTML = "<p style='color:gray; text-align:center;'>No initial data provided.</p>";
     }
 
     function getSelectedFormIds() {
@@ -319,21 +260,16 @@
       document.getElementById("rejectBtn").disabled = disabled;
     }
 
-    // Handle approve/reject button click
     async function handleDecision(status) {
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
-
       if (!formIds) {
         alert("Please select at least one form.");
         return;
       }
-
       const webhookUrl = `https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response?status=${encodeURIComponent(status)}&Reviewer=${encodeURIComponent(reviewer)}&Form_Ids=${encodeURIComponent(formIds)}`;
-
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
-
       try {
         const response = await fetch(webhookUrl, { method: 'GET' });
         if (!response.ok) {
@@ -352,20 +288,23 @@
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
     document.getElementById("rejectBtn").onclick = () => handleDecision("Rejected");
 
-    // Helper to get all Form ID values from an HTML table string
+    async function fetchRawFileContent() {
+      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
+      const response = await fetch(rawUrl, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
+      const text = await response.text();
+      if (text.trim().length < 10) throw new Error("Refreshed data too short");
+      return { text };
+    }
+
     function getFormIdsFromTableHTML(html) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html;
       const table = wrapper.querySelector('table');
       if (!table) return new Set();
-
       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
       const formIdIndex = headers.indexOf('Form ID'); 
-
-      if (formIdIndex === -1) {
-        return new Set();
-      }
-
+      if (formIdIndex === -1) return new Set();
       const formIds = new Set();
       const rows = table.querySelectorAll('tbody tr');
       rows.forEach(row => {
@@ -377,22 +316,11 @@
       return formIds;
     }
 
-    // Fetch the file content and return its content
-    async function fetchRawFileContent() {
-      const rawUrl = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const response = await fetch(rawUrl, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Failed fetching refreshed data: ${response.status}`);
-      const text = await response.text();
-      if (text.trim().length < 10) throw new Error("Refreshed data too short");
-      return { text };
-    }
-
-    // Poll every 5 seconds for up to 20 seconds for updated content
     let pollingInterval;
     async function pollForUpdate(initialFormIds) {
       const statusText = document.getElementById("statusText");
       let attempts = 0;
-      const maxAttempts = 4; // 5s * 4 = 20 seconds max
+      const maxAttempts = 4;
 
       return new Promise((resolve) => {
         pollingInterval = setInterval(async () => {
@@ -400,29 +328,17 @@
           try {
             const { text: newText } = await fetchRawFileContent();
             const latestFormIds = getFormIdsFromTableHTML(newText);
-
-            // Check if there's any difference in Form_IDs
             const addedIds = new Set([...latestFormIds].filter(id => !initialFormIds.has(id)));
             const removedIds = new Set([...initialFormIds].filter(id => !latestFormIds.has(id)));
-
             const hasUpdates = addedIds.size > 0 || removedIds.size > 0;
-
             if (hasUpdates || attempts >= maxAttempts) {
               clearInterval(pollingInterval);
-
-              // Update table
-              document.getElementById("tableContainer").innerHTML = newText;
+              document.getElementById("tableArea").innerHTML = newText;
               addSelectAllControl();
               addColumnResizers();
-
-              if (hasUpdates) {
-                statusText.textContent = `✅ Table refreshed!`;
-                resolve(true);
-              } else {
-                statusText.textContent = `⚠️ No updates found.`;
-                resolve(false);
-              }
+              statusText.textContent = hasUpdates ? `✅ Table refreshed!` : `⚠️ No updates found.`;
               toggleButtonsDisabled(false);
+              resolve(hasUpdates);
             }
           } catch (err) {
             clearInterval(pollingInterval);
@@ -430,17 +346,15 @@
             toggleButtonsDisabled(false);
             resolve(false);
           }
-        }, 5000); // Poll every 5 seconds
+        }, 5000);
       });
     }
 
-    // Main refresh function triggered by Refresh button
     async function refreshTable() {
       const statusText = document.getElementById("statusText");
       statusText.textContent = `Triggering refresh...`;
       statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
       toggleButtonsDisabled(true);
-
       try {
         const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
           method: "GET",
@@ -450,13 +364,10 @@
           const errorDetail = await webhookResp.text();
           throw new Error(`Webhook trigger failed with status ${webhookResp.status}: ${errorDetail}`);
         }
-
-        const currentTableHTML = document.getElementById("tableContainer").innerHTML;
+        const currentTableHTML = document.getElementById("tableArea").innerHTML;
         const initialFormIds = getFormIdsFromTableHTML(currentTableHTML);
-
         statusText.textContent = `Waiting for updated data...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-
         await pollForUpdate(initialFormIds);
       } catch (err) {
         statusText.textContent = `❌ Refresh failed: ${err.message}`;
