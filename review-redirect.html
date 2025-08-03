@@ -11,7 +11,7 @@
     html, body {
       margin: 0; padding: 0; 
       width: 100%; 
-      overflow-x: hidden; /* Prevent horizontal scroll */
+      overflow-x: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f9fafb;
       color: #222;
@@ -30,7 +30,7 @@
     }
     #fuel-log-table {
       border: 2px solid blue;
-      width: 100%; /
+      width: 100%;
       height: 60vh; 
       box-sizing: border-box;
     }
@@ -41,15 +41,13 @@
       gap: 20px;
       flex-wrap: wrap;
       width: 100vw;
-      max-width: none; /* no max width */
     }
     button {
       cursor: pointer;
       border: none;
-      height:30px;
-      width:200px;        
+      height: 40px;
+      width: 200px;        
       border-radius: 0px;
-      padding: 12px 28px;
       font-size: 16px;
       font-weight: 600;
       color: white;
@@ -95,7 +93,6 @@
       justify-content: center;
       align-items: center;
       gap: 8px;
-      max-width: none;
     }
     .loader {
       display: inline-block;
@@ -117,9 +114,7 @@
 
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
 
-<div id="tableWrapper" style="padding: 0 20px; width: 100vw; box-sizing: border-box;">
   <div id="fuel-log-table"></div>
-</div>
 
   <div class="buttons">
     <button id="refreshBtn" aria-label="Refresh Table">🔄 Refresh Table</button>
@@ -165,26 +160,23 @@
     }
 
     function getColumnsFromHeaders(headers){
-      // Do NOT include your own "select" column from data; instead, use Tabulator's rowSelection column
-      // Filter out any header named "Select" to avoid duplicate
       const filteredHeaders = headers.filter(hdr => hdr.toLowerCase() !== 'select');
-
       return [{
-        formatter:"rowSelection",
-        titleFormatter:"rowSelection",
-        hozAlign:"center",
-        headerSort:false,
-        width:50,
-        frozen:true,
+        formatter: "rowSelection",
+        titleFormatter: "rowSelection",
+        hozAlign: "center",
+        headerSort: false,
+        width: 50,
+        frozen: true,
       }].concat(filteredHeaders.map(hdr => ({
         title: hdr,
         field: hdr,
-        headerFilter:"input",
-        headerSort:true,
-        resizable:true,
-        hozAlign:"left",
-        tooltip:true,
-        visible: hdr === "Form ID" ? false : true,  // <-- hide Form ID
+        headerFilter: "input",
+        headerSort: true,
+        resizable: true,
+        hozAlign: "left",
+        tooltip: true,
+        visible: hdr === "Form ID" ? false : true
       })));
     }
 
@@ -206,14 +198,14 @@
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
             data: tableData,
-            layout:"fitDataStretch",   
-            movableColumns:true,
-            resizableColumns:true,
+            layout: "fitDataStretch",
+            movableColumns: true,
+            resizableColumns: true,
             columns: columns,
-            selectable:true,
-            pagination:false,
-            selectableRangeMode:"click",
-            initialSort:[{column:columns[1].field, dir:"asc"}],
+            selectable: true,
+            selectableRangeMode: "click",
+            pagination: false,
+            initialSort: [{ column: columns[1].field, dir: "asc" }],
           });
         } else {
           document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>No table found in data.</p>";
