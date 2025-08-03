@@ -202,12 +202,14 @@
             movableColumns: true,
             resizableColumns: true,
             columns: columns,
-            selectable: true,                  // ← enables multi-select
-            selectableRangeMode: "click",     // ← optional shift-click for range
-            rowClick: null,                   // ← optional: disables row click toggling selection
+            selectable: true,                       // enable multi-select
+            selectableCheck: row => true,          // allow selecting any row
+            selectableRangeMode: "click",          // enable shift+click range selection
+            rowClick: false,                       // prevent row clicks from toggling selection
             pagination: false,
             initialSort: [{ column: columns[1].field, dir: "asc" }],
           });
+
         } else {
           document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>No table found in data.</p>";
         }
