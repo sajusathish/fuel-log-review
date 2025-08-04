@@ -310,9 +310,9 @@
 
         if(hasChanged){
           table.replaceData(newData);
-          statusText.textContent = `✅ Table refreshed! (${timeString})`;
+          statusText.textContent = `✅ Table refreshed! (Last Update : ${timeString})`;
         } else {
-          statusText.textContent = `⚠️ No updates found. (${timeString})`;
+          statusText.textContent = `⚠️ No updates found! (Last Update : ${timeString})`;
         }
 
       } catch(err) {
