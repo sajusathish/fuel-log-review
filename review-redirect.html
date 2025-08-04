@@ -268,59 +268,59 @@
       return txt;
     }
 
-    async function refreshTable(){
-  const statusText = document.getElementById("statusText");
-  statusText.textContent = `Triggering refresh...`;
-  statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-  toggleButtonsDisabled(true);
-
-  try {
-    const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {method:"GET",cache:"no-store"});
-    if(!webhookResp.ok){
-      const errTxt = await webhookResp.text();
-      throw new Error(`Webhook trigger failed: ${errTxt}`);
-    }
-
-    statusText.textContent = `Fetching updated data...`;
+  async function refreshTable(){
+    const statusText = document.getElementById("statusText");
+    statusText.textContent = `Triggering refresh...`;
     statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-
-    setTimeout(async () => {
-      try {
-        const newTableHTML = await fetchRawFileContent();
-        const newData = parseTableHTMLtoData(newTableHTML);
-
-        const newFormIds = newData.map(row => row["Form ID"]).sort();
-        const currentFormIds = table.getData().map(row => row["Form ID"]).sort();
-
-        const hasChanged = newFormIds.length !== currentFormIds.length ||
-                           newFormIds.some((id, idx) => id !== currentFormIds[idx]);
-
-        // Hawaii Standard Time display
-        const now = new Date();
-        const timeString = now.toLocaleString("en-US", {
-          timeZone: "Pacific/Honolulu",
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          timeZoneName: 'short'
-        });
-
-        if(hasChanged){
-          table.replaceData(newData);
-          statusText.textContent = `✅ Table refreshed! (Last Update : ${timeString})`;
-        } else {
-          statusText.textContent = `⚠️ No updates found! (Last Update : ${timeString})`;
-        }
-
-      } catch(err) {
-        statusText.textContent = `❌ Error fetching updated data: ${err.message}`;
-      } finally {
-        toggleButtonsDisabled(false);
+    toggleButtonsDisabled(true);
+  
+    try {
+      const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", { method: "GET", cache: "no-store" });
+      if (!webhookResp.ok) {
+        const errTxt = await webhookResp.text();
+        throw new Error(`Webhook trigger failed: ${errTxt}`);
       }
-    }, 5000);
+  
+      statusText.textContent = `Polling for updates...`;
+      statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
+  
+      const getFormIds = (data) => new Set(data.map(row => row["Form ID"] || Object.values(row)[0]));
+  
+      const oldFormIds = getFormIds(table.getData());
+      let retries = 3;
+  
+      while (retries-- > 0) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const newTableHTML = await fetchRawFileContent();
+          const newData = parseTableHTMLtoData(newTableHTML);
+          const newFormIds = getFormIds(newData);
+  
+          const hasChanges = oldFormIds.size !== newFormIds.size ||
+            [...oldFormIds].some(id => !newFormIds.has(id));
+  
+          if (hasChanges) {
+            table.replaceData(newData);
+            const hstTime = new Date().toLocaleString("en-US", { timeZone: "Pacific/Honolulu", hour12: false });
+            statusText.textContent = `✅ Table refreshed at ${hstTime} HST`;
+            toggleButtonsDisabled(false);
+            return;
+          }
+        } catch (e) {
+          statusText.textContent = `❌ Error fetching update: ${e.message}`;
+          toggleButtonsDisabled(false);
+          return;
+        }
+      }
+  
+      statusText.textContent = `⚠️ No updates found.`;
+    } catch (e) {
+      statusText.textContent = `❌ Refresh failed: ${e.message}`;
+    } finally {
+      toggleButtonsDisabled(false);
+    }
+  }
+
 
   } catch(e) {
     statusText.textContent = `❌ Refresh failed: ${e.message}`;
