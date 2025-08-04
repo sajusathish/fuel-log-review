@@ -269,43 +269,65 @@
     }
 
     async function refreshTable(){
-      const statusText = document.getElementById("statusText");
-      statusText.textContent = `Triggering refresh...`;
-      statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-      toggleButtonsDisabled(true);
+  const statusText = document.getElementById("statusText");
+  statusText.textContent = `Triggering refresh...`;
+  statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
+  toggleButtonsDisabled(true);
 
+  try {
+    const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {method:"GET",cache:"no-store"});
+    if(!webhookResp.ok){
+      const errTxt = await webhookResp.text();
+      throw new Error(`Webhook trigger failed: ${errTxt}`);
+    }
+
+    statusText.textContent = `Fetching updated data...`;
+    statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
+
+    setTimeout(async () => {
       try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {method:"GET",cache:"no-store"});
-        if(!webhookResp.ok){
-          const errTxt = await webhookResp.text();
-          throw new Error(`Webhook trigger failed: ${errTxt}`);
+        const newTableHTML = await fetchRawFileContent();
+        const newData = parseTableHTMLtoData(newTableHTML);
+
+        const newFormIds = newData.map(row => row["Form ID"]).sort();
+        const currentFormIds = table.getData().map(row => row["Form ID"]).sort();
+
+        const hasChanged = newFormIds.length !== currentFormIds.length ||
+                           newFormIds.some((id, idx) => id !== currentFormIds[idx]);
+
+        // Hawaii Standard Time display
+        const now = new Date();
+        const timeString = now.toLocaleString("en-US", {
+          timeZone: "Pacific/Honolulu",
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZoneName: 'short'
+        });
+
+        if(hasChanged){
+          table.replaceData(newData);
+          statusText.textContent = `✅ Table refreshed! (${timeString})`;
+        } else {
+          statusText.textContent = `⚠️ No updates found. (${timeString})`;
         }
 
-        statusText.textContent = `Fetching updated data...`;
-        statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-
-        setTimeout(async () => {
-          try {
-            const newTableHTML = await fetchRawFileContent();
-            const newData = parseTableHTMLtoData(newTableHTML);
-            if(newData.length){
-              table.replaceData(newData);
-              statusText.textContent = `✅ Table refreshed!`;
-            } else {
-              statusText.textContent = `⚠️ No updates found.`;
-            }
-          } catch(err) {
-            statusText.textContent = `❌ Error fetching updated data: ${err.message}`;
-          } finally {
-            toggleButtonsDisabled(false);
-          }
-        }, 5000);
-
-      } catch(e) {
-        statusText.textContent = `❌ Refresh failed: ${e.message}`;
+      } catch(err) {
+        statusText.textContent = `❌ Error fetching updated data: ${err.message}`;
+      } finally {
         toggleButtonsDisabled(false);
       }
-    }
+    }, 5000);
+
+  } catch(e) {
+    statusText.textContent = `❌ Refresh failed: ${e.message}`;
+    toggleButtonsDisabled(false);
+  }
+}
+
 
     document.getElementById("refreshBtn").onclick = refreshTable;
 
