@@ -99,6 +99,113 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal {
+      width: min(560px, 92vw);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      outline: none;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid #eef2f7;
+      background: #fbfbfd;
+    }
+    .modal-icon {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: #fdecea;
+      color: #c0392b;
+      font-size: 18px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c3e50;
+      margin: 0;
+    }
+    .modal-body {
+      padding: 16px 18px;
+      display: grid;
+      gap: 12px;
+    }
+    .modal-help {
+      font-size: 14px;
+      color: #5d6d7e;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #2c3e50;
+      background: #ecf5ff;
+      border: 1px solid #d6ebff;
+      padding: 4px 8px;
+      border-radius: 999px;
+      user-select: none;
+      width: max-content;
+    }
+    .modal textarea {
+      width: 100%;
+      min-height: 110px;
+      border: 1px solid #dce3ec;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+      outline: none;
+    }
+    .modal textarea:focus {
+      border-color: #2980b9;
+      box-shadow: 0 0 0 3px rgba(41,128,185,0.15);
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 18px;
+      border-top: 1px solid #eef2f7;
+      background: #fbfbfd;
+    }
+    .btn-secondary {
+      background: #eef2f7;
+      color: #2c3e50;
+    }
+    .btn-secondary:hover { background: #e3e8ef; }
+    .btn-danger {
+      background: #c0392b;
+      color: #fff;
+    }
+    .btn-danger:hover { background: #922b21; }
+    .char-hint {
+      font-size: 12px;
+      color: #7b8a97;
+      text-align: right;
+    }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -114,6 +221,28 @@
   </div>
 
   <div id="statusText" aria-live="polite" role="status"></div>
+
+  <!-- Reject Modal -->
+  <div id="rejectOverlay" class="modal-overlay" aria-hidden="true">
+    <div id="rejectModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rejectTitle">
+      <div class="modal-header">
+        <span class="modal-icon">⚠️</span>
+        <h4 id="rejectTitle" class="modal-title">Reject selected logs</h4>
+      </div>
+      <div class="modal-body">
+        <div class="badge" id="selectedCount">0 selected</div>
+        <div class="modal-help">Add a short reason so the submitter knows what to fix.</div>
+        <label for="rejectReason" class="modal-help" style="font-weight:600;color:#34495e;">Reason</label>
+        <textarea id="rejectReason" placeholder="Example: Missing receipt image for Fuel ID 123. Please reupload and resubmit."></textarea>
+        <div class="char-hint"><span id="chars">0</span>/500</div>
+        <div id="rejectError" class="modal-help hidden" style="color:#c0392b;">Please enter a reason.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelReject" class="btn-secondary">Cancel</button>
+        <button id="confirmReject" class="btn-danger">Submit rejection</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 
@@ -224,7 +353,7 @@
       document.getElementById("rejectBtn").disabled = disabled;
     }
 
-    // Updated to accept optional extra params (used by Reject only)
+    // Accept optional extra params for webhook (used by Reject only)
     async function handleDecision(status, extraParams = {}){
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
@@ -261,22 +390,68 @@
     // Approve unchanged
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
-    // Reject now asks for a reason and includes it in the payload
-    document.getElementById("rejectBtn").onclick = async () => {
+    // Modal helpers
+    const overlay = document.getElementById("rejectOverlay");
+    const modal = document.getElementById("rejectModal");
+    const reasonEl = document.getElementById("rejectReason");
+    const countEl = document.getElementById("selectedCount");
+    const errEl = document.getElementById("rejectError");
+    const charsEl = document.getElementById("chars");
+    const cancelBtn = document.getElementById("cancelReject");
+    const confirmBtn = document.getElementById("confirmReject");
+
+    function openRejectModal(){
       const formIds = getSelectedFormIds();
       if(!formIds){
         alert("Please select at least one form.");
         return;
       }
-      let reason = prompt("Enter reason(s) for rejection. This will be sent to Workato:");
-      if (reason === null) return; // user canceled
-      reason = reason.trim();
+      const selectedCount = formIds.split(",").filter(Boolean).length;
+      countEl.textContent = `${selectedCount} selected`;
+      reasonEl.value = "";
+      charsEl.textContent = "0";
+      errEl.classList.add("hidden");
+      overlay.style.display = "flex";
+      overlay.setAttribute("aria-hidden", "false");
+      modal.focus();
+    }
+    function closeRejectModal(){
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
+    reasonEl.addEventListener("input", () => {
+      const max = 500;
+      if (reasonEl.value.length > max) {
+        reasonEl.value = reasonEl.value.slice(0, max);
+      }
+      charsEl.textContent = String(reasonEl.value.length);
+      if (reasonEl.value.trim().length > 0) {
+        errEl.classList.add("hidden");
+      }
+    });
+
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) closeRejectModal();
+    });
+    document.addEventListener("keydown", e => {
+      if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal();
+    });
+    cancelBtn.addEventListener("click", closeRejectModal);
+
+    confirmBtn.addEventListener("click", async () => {
+      const reason = reasonEl.value.trim();
       if (!reason) {
-        alert("Please enter a reason to proceed.");
+        errEl.classList.remove("hidden");
+        reasonEl.focus();
         return;
       }
+      closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
-    };
+    });
+
+    // Reject now opens the modal
+    document.getElementById("rejectBtn").onclick = openRejectModal;
 
     async function fetchRawFileContent(){
       const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
