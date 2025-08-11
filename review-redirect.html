@@ -4,81 +4,133 @@
   <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
   <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_modern.min.css" rel="stylesheet">
+
   <style>
+    :root{
+      --ink:#2c3e50;
+      --muted:#5d6d7e;
+      --surface:#fff;
+      --bg:#f6f8fb;
+      --brand:#2980b9;
+      --ok:#27ae60;
+      --danger:#c0392b;
+      --ring:rgba(41,128,185,.15);
+      --card-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
     html, body {
-      margin: 0; padding: 0;
-      width: 100%;
-      overflow-x: hidden;
+      margin:0; padding:0; width:100%;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f9fafb;
-      color: #222;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background:var(--bg); color:#222;
+      height:100vh; display:flex; flex-direction:column; align-items:center;
     }
-    h3 { align-self: stretch; margin: 20px; font-weight: 700; color: #2c3e50; font-size: 1.8rem; user-select: none; }
-    #fuel-log-table { border: 2px solid blue; width: 95%; box-sizing: border-box; }
-    .buttons { margin: 15px 20px 30px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100vw; }
-    button {
-      cursor: pointer; border: none; height: 40px; width: 200px; border-radius: 0; font-size: 16px; font-weight: 600; color: #fff;
-      background: #2980b9; box-shadow: 0 4px 8px rgb(0 0 0 / 0.15); transition: background-color .3s, box-shadow .2s, transform .15s;
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px; user-select: none;
+
+    /* header area */
+    .page-wrap{ width:min(1100px,95vw); }
+    .greeting{
+      margin:24px 0 8px;
+      font-size:28px; font-weight:800; letter-spacing:.2px; color:var(--ink);
     }
-    button:hover:not(:disabled) { box-shadow: 0 6px 15px rgb(0 0 0 / 0.25); transform: translateY(-2px); }
-    button:disabled { cursor: not-allowed; opacity: .6; box-shadow: none; transform: none; }
-    button.approve { background: #27ae60; } button.approve:hover:not(:disabled) { background: #1e8449; }
-    button.reject { background: #c0392b; } button.reject:hover:not(:disabled) { background: #922b21; }
-    #statusText { margin: 0 20px 30px; font-weight: 600; color: #34495e; user-select: none; min-height: 24px; width: 100vw; display: flex; justify-content: center; align-items: center; gap: 8px; }
-    .loader { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(0,0,0,.2); border-top: 3px solid #34495e; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
-    @keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
-
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 9999; }
-    .modal { width: min(560px, 92vw); background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; outline: none; }
-    .modal-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #eef2f7; background: #fbfbfd; }
-    .modal-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: #fdecea; color: #c0392b; font-size: 18px; }
-    .modal-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin: 0; }
-    .modal-body { padding: 16px 18px; display: grid; gap: 12px; }
-    .modal-help { font-size: 14px; color: #5d6d7e; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #2c3e50; background: #ecf5ff; border: 1px solid #d6ebff; padding: 4px 8px; border-radius: 999px; user-select: none; width: max-content; }
-
-    /* fix alignment */
-    .modal textarea {
-      width: 100%;
-      min-height: 110px;
-      border: 1px solid #dce3ec;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-family: inherit;
-      font-size: 14px;
-      resize: vertical;
-      outline: none;
-      box-sizing: border-box;
-      margin: 0;
+    .subtext{
+      margin:0 0 14px;
+      font-size:14px; color:var(--muted);
     }
-    .modal textarea:focus { border-color: #2980b9; box-shadow: 0 0 0 3px rgba(41,128,185,.15); }
-    .char-hint { font-size: 12px; color: #7b8a97; text-align: right; margin-top: 4px; padding-right: 2px; }
+    /* smaller, tidy date title */
+    .date-title{
+      display:flex; align-items:center; gap:8px;
+      margin:0 0 14px;
+      font-weight:700; color:var(--ink);
+      font-size:16px; text-transform:uppercase; letter-spacing:.6px;
+      opacity:.9;
+    }
+    .date-chip{
+      font-weight:700; font-size:13px; color:#1f2d3a;
+      background:#e9f3ff; border:1px solid #d7e9ff;
+      padding:2px 8px; border-radius:999px;
+    }
 
-    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid #eef2f7; background: #fbfbfd; }
-    .btn-secondary { background: #eef2f7; color: #2c3e50; }
-    .btn-secondary:hover { background: #e3e8ef; }
-    .btn-danger { background: #c0392b; color: #fff; }
-    .btn-danger:hover { background: #922b21; }
-    .hidden { display: none; }
+    /* table */
+    #fuel-log-table{
+      border:1px solid #dfe6ee;
+      background:var(--surface);
+      border-radius:12px;
+      box-shadow:var(--card-shadow);
+      padding:8px;
+      width:100%;
+      box-sizing:border-box;
+    }
+
+    /* buttons row */
+    .buttons{
+      margin:18px 0 26px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap; width:100%;
+    }
+    button{
+      cursor:pointer; border:none; height:42px; width:200px; border-radius:10px;
+      font-size:15px; font-weight:700; color:#fff; background:var(--brand);
+      box-shadow:0 6px 14px rgba(41,128,185,.22);
+      transition:transform .15s, box-shadow .2s, background .2s; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    }
+    button:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 10px 18px rgba(0,0,0,.18); }
+    button:disabled{ cursor:not-allowed; opacity:.6; box-shadow:none; transform:none; }
+    button.approve{ background:var(--ok); }
+    button.approve:hover:not(:disabled){ background:#1e8449; }
+    button.reject{ background:var(--danger); }
+    button.reject:hover:not(:disabled){ background:#922b21; }
+
+    /* status */
+    #statusText{
+      margin:0 0 6px; font-weight:600; color:#34495e; user-select:none; min-height:24px;
+      width:100%; display:flex; justify-content:center; align-items:center; gap:8px;
+    }
+    .loader{ display:inline-block; width:18px; height:18px; border:3px solid rgba(0,0,0,.2); border-top:3px solid #34495e; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+
+    /* modal */
+    .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999; }
+    .modal{
+      width:min(560px,92vw); background:#fff; border-radius:14px; box-shadow:0 18px 40px rgba(0,0,0,.25);
+      overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; outline:none;
+    }
+    .modal-header{ display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid #eef2f7; background:#fbfbfd; }
+    .modal-icon{ width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; background:#fdecea; color:var(--danger); font-size:18px; }
+    .modal-title{ font-size:18px; font-weight:800; color:var(--ink); margin:0; }
+    .modal-body{ padding:16px 18px; display:grid; gap:12px; }
+    .modal-help{ font-size:14px; color:var(--muted); }
+    .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#2c3e50; background:#ecf5ff; border:1px solid #d6ebff; padding:4px 8px; border-radius:999px; width:max-content; }
+    /* alignment fix */
+    .modal textarea{
+      width:100%; min-height:110px; border:1px solid #dce3ec; border-radius:10px; padding:10px 12px;
+      font-family:inherit; font-size:14px; resize:vertical; outline:none; box-sizing:border-box; margin:0;
+    }
+    .modal textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 3px var(--ring); }
+    .char-hint{ font-size:12px; color:#7b8a97; text-align:right; margin-top:4px; padding-right:2px; }
+    .modal-footer{ display:flex; justify-content:flex-end; gap:10px; padding:14px 18px; border-top:1px solid #eef2f7; background:#fbfbfd; }
+    .btn-secondary{ background:#eef2f7; color:#2c3e50; }
+    .btn-secondary:hover{ background:#e3e8ef; }
+    .btn-danger{ background:var(--danger); color:#fff; }
+    .btn-danger:hover{ background:#922b21; }
+    .hidden{ display:none; }
   </style>
 </head>
 <body>
-  <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
-  <div id="fuel-log-table"></div>
+  <div class="page-wrap">
+    <div id="greeting" class="greeting">Hello</div>
+    <p id="subtext" class="subtext">Review today’s fuel logs. Select the rows you want, then approve or add a rejection reason.</p>
 
-  <div class="buttons">
-    <button id="refreshBtn" aria-label="Refresh Table">🔄 Refresh Table</button>
-    <button id="approveBtn" class="approve" aria-label="Approve Selected">✅ Approve</button>
-    <button id="rejectBtn" class="reject" aria-label="Reject Selected">❌ Reject</button>
+    <div class="date-title">
+      <span>Daily fuel log review</span>
+      <span class="date-chip" id="todayDate"></span>
+    </div>
+
+    <div id="fuel-log-table"></div>
+
+    <div class="buttons">
+      <button id="refreshBtn" aria-label="Refresh Table">🔄 Refresh Table</button>
+      <button id="approveBtn" class="approve" aria-label="Approve Selected">✅ Approve</button>
+      <button id="rejectBtn" class="reject" aria-label="Reject Selected">❌ Reject</button>
+    </div>
+
+    <div id="statusText" aria-live="polite" role="status"></div>
   </div>
-
-  <div id="statusText" aria-live="polite" role="status"></div>
 
   <!-- Reject Modal -->
   <div id="rejectOverlay" class="modal-overlay" aria-hidden="true">
@@ -91,7 +143,7 @@
         <div class="badge" id="selectedCount">0 selected</div>
         <div class="modal-help">Add a short reason so the submitter knows what to fix.</div>
         <label for="rejectReason" class="modal-help" style="font-weight:600;color:#34495e;">Reason</label>
-        <textarea id="rejectReason" placeholder="Example: Missing receipt image for Fuel ID 123. Please reupload and resubmit."></textarea>
+        <textarea id="rejectReason" placeholder="Example: Missing Location details on form. Please reupload and resubmit."></textarea>
         <div class="char-hint"><span id="chars">0</span>/500</div>
         <div id="rejectError" class="modal-help hidden" style="color:#c0392b;">Please enter a reason.</div>
       </div>
@@ -104,17 +156,16 @@
 
   <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
   <script>
+    // date chip
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    function base64UrlDecode(input) {
-      try {
-        const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+    // helpers
+    function base64UrlDecode(input){
+      try{
+        const base64 = input.replace(/-/g,'+').replace(/_/g,'/');
         const decoded = atob(base64);
         return decodeURIComponent(escape(decoded));
-      } catch(e) {
-        console.error("Decode error", e);
-        return null;
-      }
+      }catch(e){ console.error("Decode error", e); return null; }
     }
 
     function parseTableHTMLtoData(html){
@@ -126,7 +177,7 @@
       const rows = Array.from(table.querySelectorAll("tbody tr"));
       return rows.map(row => {
         const cells = Array.from(row.querySelectorAll("td"));
-        let obj = {};
+        const obj = {};
         cells.forEach((cell, i) => { obj[headers[i] || `col${i}`] = cell.textContent.trim(); });
         return obj;
       });
@@ -135,17 +186,27 @@
     function getColumnsFromHeaders(headers){
       const filtered = headers.filter(h => h.toLowerCase() !== 'select');
       return [{
-        formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 50, frozen: true
+        formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:50, frozen:true
       }].concat(filtered.map(h => ({
-        title: h, field: h, headerFilter: "input", headerSort: true, resizable: true, hozAlign: "left", tooltip: true, visible: h === "Form ID" ? false : true
+        title:h, field:h, headerFilter:"input", headerSort:true, resizable:true, hozAlign:"left", tooltip:true, visible: h === "Form ID" ? false : true
       })));
     }
 
-    let table;
+    // url params and greeting
     const params = new URLSearchParams(window.location.search);
     const dataEncoded = params.get('data');
     const reviewer = params.get('reviewer') || 'unknown@domain.com';
 
+    function nameFromEmail(mail){
+      const local = (mail || '').split('@')[0] || '';
+      if(!local) return 'Reviewer';
+      return local.charAt(0).toUpperCase() + local.slice(1); // Satish.s from satish.s
+    }
+    document.getElementById('greeting').textContent = `Hello ${nameFromEmail(reviewer)}`;
+    // optional: tweak subtext per person if you ever want
+
+    // table init
+    let table;
     if(dataEncoded){
       const tableHTML = base64UrlDecode(dataEncoded);
       if(tableHTML){
@@ -156,17 +217,24 @@
           const tableData = parseTableHTMLtoData(tableHTML);
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
-            data: tableData, layout: "fitDataStretch", movableColumns: true, resizableColumns: true,
-            columns, selectable: true, selectableCheck: () => true, rowClick: false, pagination: false,
+            data: tableData,
+            layout: "fitDataStretch",
+            movableColumns: true,
+            resizableColumns: true,
+            columns: columns,
+            selectable: true,
+            selectableCheck: () => true,
+            rowClick: false,
+            pagination: false,
             initialSort: [{ column: columns[1].field, dir: "asc" }]
           });
-        } else {
+        }else{
           document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>No table found in data.</p>";
         }
-      } else {
+      }else{
         document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
       }
-    } else {
+    }else{
       document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
     }
 
@@ -193,18 +261,18 @@
       const webhookUrl = `${base}?${qs.toString()}`;
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
-      try {
-        const response = await fetch(webhookUrl, { method: 'GET' });
-        if(!response.ok){ const errText = await response.text(); throw new Error(`Webhook call failed: ${errText}`); }
+      try{
+        const response = await fetch(webhookUrl, { method:'GET' });
+        if(!response.ok){ const err = await response.text(); throw new Error(`Webhook call failed: ${err}`); }
         statusText.textContent = `✅ ${status} sent successfully!`;
-      } catch(e) {
+      }catch(e){
         statusText.textContent = `❌ Error: ${e.message}`;
-      } finally {
+      }finally{
         toggleButtonsDisabled(false);
       }
     }
 
-    // approve unchanged
+    // buttons
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
     // modal refs
@@ -222,17 +290,10 @@
       if(!formIds){ alert("Please select at least one form."); return; }
       const selectedCount = formIds.split(",").filter(Boolean).length;
       countEl.textContent = `${selectedCount} selected`;
-      reasonEl.value = "";
-      charsEl.textContent = "0";
-      errEl.classList.add("hidden");
-      overlay.style.display = "flex";
-      overlay.setAttribute("aria-hidden", "false");
-      modal.focus();
+      reasonEl.value = ""; charsEl.textContent = "0"; errEl.classList.add("hidden");
+      overlay.style.display = "flex"; overlay.setAttribute("aria-hidden","false"); modal.focus();
     }
-    function closeRejectModal(){
-      overlay.style.display = "none";
-      overlay.setAttribute("aria-hidden", "true");
-    }
+    function closeRejectModal(){ overlay.style.display = "none"; overlay.setAttribute("aria-hidden","true"); }
 
     reasonEl.addEventListener("input", () => {
       const max = 500;
@@ -243,16 +304,18 @@
 
     overlay.addEventListener("click", e => { if (e.target === overlay) closeRejectModal(); });
     document.addEventListener("keydown", e => { if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal(); });
-    document.getElementById("rejectBtn").onclick = openRejectModal;
-    document.getElementById("cancelReject").onclick = closeRejectModal;
+    cancelBtn.addEventListener("click", closeRejectModal);
 
-    document.getElementById("confirmReject").onclick = async () => {
+    confirmBtn.addEventListener("click", async () => {
       const reason = reasonEl.value.trim();
       if (!reason) { errEl.classList.remove("hidden"); reasonEl.focus(); return; }
       closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
-    };
+    });
 
+    document.getElementById("rejectBtn").onclick = openRejectModal;
+
+    // refresh logic (unchanged)
     async function fetchRawFileContent(){
       const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
       const resp = await fetch(url, {cache:'no-store'});
@@ -262,55 +325,51 @@
       return txt;
     }
 
-    async function refreshTable() {
+    async function refreshTable(){
       const statusText = document.getElementById("statusText");
       statusText.textContent = `Triggering refresh...`;
-      statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
+      statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
       toggleButtonsDisabled(true);
-      try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", { method: "GET", cache: "no-store" });
-        if (!webhookResp.ok) { const errTxt = await webhookResp.text(); throw new Error(`Webhook trigger failed: ${errTxt}`); }
+      try{
+        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", { method:"GET", cache:"no-store" });
+        if(!webhookResp.ok){ const errTxt = await webhookResp.text(); throw new Error(`Webhook trigger failed: ${errTxt}`); }
         statusText.textContent = `Polling for updates...`;
-        statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-        const getFormIds = (data) => data.map(row => row["Form ID"]).sort();
+        statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+        const getFormIds = (data) => data.map(r => r["Form ID"]).sort();
         const currentFormIds = getFormIds(table.getData());
         let retries = 3;
-        while (retries-- > 0) {
+        while(retries-- > 0){
           await new Promise(r => setTimeout(r, 5000));
-          try {
+          try{
             const newTableHTML = await fetchRawFileContent();
             const newData = parseTableHTMLtoData(newTableHTML);
             const newFormIds = getFormIds(newData);
-            const hasChanged = newFormIds.length !== currentFormIds.length || newFormIds.some((id, idx) => id !== currentFormIds[idx]);
-            const now = new Date();
-            const timeString = now.toLocaleString("en-US", {
-              timeZone: "Pacific/Honolulu", year: 'numeric', month: 'short', day: 'numeric',
-              hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+            const hasChanged = newFormIds.length !== currentFormIds.length || newFormIds.some((id, i) => id !== currentFormIds[i]);
+            const timeString = new Date().toLocaleString("en-US", {
+              timeZone:"Pacific/Honolulu", year:'numeric', month:'short', day:'numeric',
+              hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
             });
-            if (hasChanged) {
+            if(hasChanged){
               table.replaceData(newData);
               statusText.textContent = `✅ Table refreshed! (Last Update: ${timeString})`;
-              toggleButtonsDisabled(false);
-              return;
+              toggleButtonsDisabled(false); return;
             }
-          } catch (err) {
+          }catch(err){
             statusText.textContent = `❌ Error fetching update: ${err.message}`;
-            toggleButtonsDisabled(false);
-            return;
+            toggleButtonsDisabled(false); return;
           }
         }
         const finalTime = new Date().toLocaleString("en-US", {
-          timeZone: "Pacific/Honolulu", year: 'numeric', month: 'short', day: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+          timeZone:"Pacific/Honolulu", year:'numeric', month:'short', day:'numeric',
+          hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
         });
         statusText.textContent = `⚠️ No updates found! (Last Update: ${finalTime})`;
-      } catch (e) {
+      }catch(e){
         statusText.textContent = `❌ Refresh failed: ${e.message}`;
-      } finally {
+      }finally{
         toggleButtonsDisabled(false);
       }
     }
-
     document.getElementById("refreshBtn").onclick = refreshTable;
   </script>
 </body>
