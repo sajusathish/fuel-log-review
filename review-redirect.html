@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Daily Fuel Log Review</title>
-
-  <!-- Tabulator CSS -->
   <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_modern.min.css" rel="stylesheet">
-
   <style>
     html, body {
       margin: 0; padding: 0;
@@ -20,153 +17,33 @@
       flex-direction: column;
       align-items: center;
     }
-    h3 {
-      align-self: stretch;
-      margin: 20px;
-      font-weight: 700;
-      color: #2c3e50;
-      font-size: 1.8rem;
-      user-select: none;
-    }
-    #fuel-log-table {
-      border: 2px solid blue;
-      width: 95%;
-      box-sizing: border-box;
-    }
-    .buttons {
-      margin: 15px 20px 30px;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      width: 100vw;
-    }
+    h3 { align-self: stretch; margin: 20px; font-weight: 700; color: #2c3e50; font-size: 1.8rem; user-select: none; }
+    #fuel-log-table { border: 2px solid blue; width: 95%; box-sizing: border-box; }
+    .buttons { margin: 15px 20px 30px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100vw; }
     button {
-      cursor: pointer;
-      border: none;
-      height: 40px;
-      width: 200px;
-      border-radius: 0px;
-      font-size: 16px;
-      font-weight: 600;
-      color: white;
-      background-color: #2980b9;
-      box-shadow: 0 4px 8px rgb(0 0 0 / 0.15);
-      transition: background-color 0.3s ease, box-shadow 0.2s ease, transform 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      user-select: none;
+      cursor: pointer; border: none; height: 40px; width: 200px; border-radius: 0; font-size: 16px; font-weight: 600; color: #fff;
+      background: #2980b9; box-shadow: 0 4px 8px rgb(0 0 0 / 0.15); transition: background-color .3s, box-shadow .2s, transform .15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; user-select: none;
     }
-    button:hover:not(:disabled) {
-      box-shadow: 0 6px 15px rgb(0 0 0 / 0.25);
-      transform: translateY(-2px);
-    }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-      box-shadow: none;
-      transform: none;
-    }
-    button.approve { background-color: #27ae60; }
-    button.approve:hover:not(:disabled) { background-color: #1e8449; }
-    button.reject { background-color: #c0392b; }
-    button.reject:hover:not(:disabled) { background-color: #922b21; }
-    #statusText {
-      margin: 0 20px 30px;
-      font-weight: 600;
-      color: #34495e;
-      user-select: none;
-      min-height: 24px;
-      width: 100vw;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-    }
-    .loader {
-      display: inline-block;
-      width: 18px;
-      height: 18px;
-      border: 3px solid rgba(0,0,0,0.2);
-      border-top: 3px solid #34495e;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    button:hover:not(:disabled) { box-shadow: 0 6px 15px rgb(0 0 0 / 0.25); transform: translateY(-2px); }
+    button:disabled { cursor: not-allowed; opacity: .6; box-shadow: none; transform: none; }
+    button.approve { background: #27ae60; } button.approve:hover:not(:disabled) { background: #1e8449; }
+    button.reject { background: #c0392b; } button.reject:hover:not(:disabled) { background: #922b21; }
+    #statusText { margin: 0 20px 30px; font-weight: 600; color: #34495e; user-select: none; min-height: 24px; width: 100vw; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .loader { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(0,0,0,.2); border-top: 3px solid #34495e; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+    @keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
 
     /* Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    .modal {
-      width: min(560px, 92vw);
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      outline: none;
-    }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 18px;
-      border-bottom: 1px solid #eef2f7;
-      background: #fbfbfd;
-    }
-    .modal-icon {
-      width: 28px;
-      height: 28px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      background: #fdecea;
-      color: #c0392b;
-      font-size: 18px;
-    }
-    .modal-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #2c3e50;
-      margin: 0;
-    }
-    .modal-body {
-      padding: 16px 18px;
-      display: grid;
-      gap: 12px;
-    }
-    .modal-help {
-      font-size: 14px;
-      color: #5d6d7e;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #2c3e50;
-      background: #ecf5ff;
-      border: 1px solid #d6ebff;
-      padding: 4px 8px;
-      border-radius: 999px;
-      user-select: none;
-      width: max-content;
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 9999; }
+    .modal { width: min(560px, 92vw); background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; outline: none; }
+    .modal-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #eef2f7; background: #fbfbfd; }
+    .modal-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: #fdecea; color: #c0392b; font-size: 18px; }
+    .modal-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin: 0; }
+    .modal-body { padding: 16px 18px; display: grid; gap: 12px; }
+    .modal-help { font-size: 14px; color: #5d6d7e; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #2c3e50; background: #ecf5ff; border: 1px solid #d6ebff; padding: 4px 8px; border-radius: 999px; user-select: none; width: max-content; }
+
+    /* fix alignment */
     .modal textarea {
       width: 100%;
       min-height: 110px;
@@ -177,41 +54,22 @@
       font-size: 14px;
       resize: vertical;
       outline: none;
+      box-sizing: border-box;
+      margin: 0;
     }
-    .modal textarea:focus {
-      border-color: #2980b9;
-      box-shadow: 0 0 0 3px rgba(41,128,185,0.15);
-    }
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      padding: 14px 18px;
-      border-top: 1px solid #eef2f7;
-      background: #fbfbfd;
-    }
-    .btn-secondary {
-      background: #eef2f7;
-      color: #2c3e50;
-    }
+    .modal textarea:focus { border-color: #2980b9; box-shadow: 0 0 0 3px rgba(41,128,185,.15); }
+    .char-hint { font-size: 12px; color: #7b8a97; text-align: right; margin-top: 4px; padding-right: 2px; }
+
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid #eef2f7; background: #fbfbfd; }
+    .btn-secondary { background: #eef2f7; color: #2c3e50; }
     .btn-secondary:hover { background: #e3e8ef; }
-    .btn-danger {
-      background: #c0392b;
-      color: #fff;
-    }
+    .btn-danger { background: #c0392b; color: #fff; }
     .btn-danger:hover { background: #922b21; }
-    .char-hint {
-      font-size: 12px;
-      color: #7b8a97;
-      text-align: right;
-    }
     .hidden { display: none; }
   </style>
 </head>
 <body>
-
   <h3>Daily Fuel Log Review - <span id="todayDate"></span></h3>
-
   <div id="fuel-log-table"></div>
 
   <div class="buttons">
@@ -245,7 +103,6 @@
   </div>
 
   <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-
   <script>
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
@@ -265,38 +122,22 @@
       const doc = parser.parseFromString(html, "text/html");
       const table = doc.querySelector("table");
       if(!table) return [];
-
       const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
       const rows = Array.from(table.querySelectorAll("tbody tr"));
-
       return rows.map(row => {
         const cells = Array.from(row.querySelectorAll("td"));
         let obj = {};
-        cells.forEach((cell, i) => {
-          obj[headers[i] || `col${i}`] = cell.textContent.trim();
-        });
+        cells.forEach((cell, i) => { obj[headers[i] || `col${i}`] = cell.textContent.trim(); });
         return obj;
       });
     }
 
     function getColumnsFromHeaders(headers){
-      const filteredHeaders = headers.filter(hdr => hdr.toLowerCase() !== 'select');
+      const filtered = headers.filter(h => h.toLowerCase() !== 'select');
       return [{
-        formatter: "rowSelection",
-        titleFormatter: "rowSelection",
-        hozAlign: "center",
-        headerSort: false,
-        width: 50,
-        frozen: true
-      }].concat(filteredHeaders.map(hdr => ({
-        title: hdr,
-        field: hdr,
-        headerFilter: "input",
-        headerSort: true,
-        resizable: true,
-        hozAlign: "left",
-        tooltip: true,
-        visible: hdr === "Form ID" ? false : true
+        formatter: "rowSelection", titleFormatter: "rowSelection", hozAlign: "center", headerSort: false, width: 50, frozen: true
+      }].concat(filtered.map(h => ({
+        title: h, field: h, headerFilter: "input", headerSort: true, resizable: true, hozAlign: "left", tooltip: true, visible: h === "Form ID" ? false : true
       })));
     }
 
@@ -308,43 +149,33 @@
     if(dataEncoded){
       const tableHTML = base64UrlDecode(dataEncoded);
       if(tableHTML){
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(tableHTML, "text/html");
+        const doc = new DOMParser().parseFromString(tableHTML, "text/html");
         const tableElement = doc.querySelector("table");
         if(tableElement){
           const headers = Array.from(tableElement.querySelectorAll("thead th")).map(th => th.textContent.trim());
           const tableData = parseTableHTMLtoData(tableHTML);
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
-            data: tableData,
-            layout: "fitDataStretch",
-            movableColumns: true,
-            resizableColumns: true,
-            columns: columns,
-            selectable: true,
-            selectableCheck: () => true,
-            rowClick: false,
-            pagination: false,
+            data: tableData, layout: "fitDataStretch", movableColumns: true, resizableColumns: true,
+            columns, selectable: true, selectableCheck: () => true, rowClick: false, pagination: false,
             initialSort: [{ column: columns[1].field, dir: "asc" }]
           });
         } else {
-          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>No table found in data.</p>";
+          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>No table found in data.</p>";
         }
       } else {
-        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red; text-align:center;'>Failed to decode data.</p>";
+        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
       }
     } else {
-      document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray; text-align:center;'>No initial data provided.</p>";
+      document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
     }
 
     function getSelectedFormIds(){
-      const selectedRows = table.getSelectedData();
-      if(!selectedRows.length) return "";
-      if("Form ID" in selectedRows[0]){
-        return selectedRows.map(r => r["Form ID"]).join(",");
-      }
-      const keys = Object.keys(selectedRows[0]);
-      return selectedRows.map(r => r[keys[0]]).join(",");
+      const selected = table.getSelectedData();
+      if(!selected.length) return "";
+      if("Form ID" in selected[0]) return selected.map(r => r["Form ID"]).join(",");
+      const keys = Object.keys(selected[0]);
+      return selected.map(r => r[keys[0]]).join(",");
     }
 
     function toggleButtonsDisabled(disabled){
@@ -353,32 +184,18 @@
       document.getElementById("rejectBtn").disabled = disabled;
     }
 
-    // Accept optional extra params for webhook (used by Reject only)
     async function handleDecision(status, extraParams = {}){
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
-      if(!formIds){
-        alert("Please select at least one form.");
-        return;
-      }
-
+      if(!formIds){ alert("Please select at least one form."); return; }
       const base = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response";
-      const qs = new URLSearchParams({
-        status: status,
-        Reviewer: reviewer,
-        Form_Ids: formIds,
-        ...extraParams
-      });
+      const qs = new URLSearchParams({ status, Reviewer: reviewer, Form_Ids: formIds, ...extraParams });
       const webhookUrl = `${base}?${qs.toString()}`;
-
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
       try {
         const response = await fetch(webhookUrl, { method: 'GET' });
-        if(!response.ok){
-          const errText = await response.text();
-          throw new Error(`Webhook call failed: ${errText}`);
-        }
+        if(!response.ok){ const errText = await response.text(); throw new Error(`Webhook call failed: ${errText}`); }
         statusText.textContent = `✅ ${status} sent successfully!`;
       } catch(e) {
         statusText.textContent = `❌ Error: ${e.message}`;
@@ -387,10 +204,10 @@
       }
     }
 
-    // Approve unchanged
+    // approve unchanged
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
-    // Modal helpers
+    // modal refs
     const overlay = document.getElementById("rejectOverlay");
     const modal = document.getElementById("rejectModal");
     const reasonEl = document.getElementById("rejectReason");
@@ -402,10 +219,7 @@
 
     function openRejectModal(){
       const formIds = getSelectedFormIds();
-      if(!formIds){
-        alert("Please select at least one form.");
-        return;
-      }
+      if(!formIds){ alert("Please select at least one form."); return; }
       const selectedCount = formIds.split(",").filter(Boolean).length;
       countEl.textContent = `${selectedCount} selected`;
       reasonEl.value = "";
@@ -422,36 +236,22 @@
 
     reasonEl.addEventListener("input", () => {
       const max = 500;
-      if (reasonEl.value.length > max) {
-        reasonEl.value = reasonEl.value.slice(0, max);
-      }
+      if (reasonEl.value.length > max) reasonEl.value = reasonEl.value.slice(0, max);
       charsEl.textContent = String(reasonEl.value.length);
-      if (reasonEl.value.trim().length > 0) {
-        errEl.classList.add("hidden");
-      }
+      if (reasonEl.value.trim().length > 0) errEl.classList.add("hidden");
     });
 
-    overlay.addEventListener("click", e => {
-      if (e.target === overlay) closeRejectModal();
-    });
-    document.addEventListener("keydown", e => {
-      if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal();
-    });
-    cancelBtn.addEventListener("click", closeRejectModal);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeRejectModal(); });
+    document.addEventListener("keydown", e => { if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal(); });
+    document.getElementById("rejectBtn").onclick = openRejectModal;
+    document.getElementById("cancelReject").onclick = closeRejectModal;
 
-    confirmBtn.addEventListener("click", async () => {
+    document.getElementById("confirmReject").onclick = async () => {
       const reason = reasonEl.value.trim();
-      if (!reason) {
-        errEl.classList.remove("hidden");
-        reasonEl.focus();
-        return;
-      }
+      if (!reason) { errEl.classList.remove("hidden"); reasonEl.focus(); return; }
       closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
-    });
-
-    // Reject now opens the modal
-    document.getElementById("rejectBtn").onclick = openRejectModal;
+    };
 
     async function fetchRawFileContent(){
       const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
@@ -467,23 +267,13 @@
       statusText.textContent = `Triggering refresh...`;
       statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
       toggleButtonsDisabled(true);
-
       try {
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", {
-          method: "GET",
-          cache: "no-store"
-        });
-        if (!webhookResp.ok) {
-          const errTxt = await webhookResp.text();
-          throw new Error(`Webhook trigger failed: ${errTxt}`);
-        }
-
+        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", { method: "GET", cache: "no-store" });
+        if (!webhookResp.ok) { const errTxt = await webhookResp.text(); throw new Error(`Webhook trigger failed: ${errTxt}`); }
         statusText.textContent = `Polling for updates...`;
         statusText.insertAdjacentHTML('beforeend', '<span class="loader"></span>');
-
         const getFormIds = (data) => data.map(row => row["Form ID"]).sort();
         const currentFormIds = getFormIds(table.getData());
-
         let retries = 3;
         while (retries-- > 0) {
           await new Promise(r => setTimeout(r, 5000));
@@ -491,47 +281,28 @@
             const newTableHTML = await fetchRawFileContent();
             const newData = parseTableHTMLtoData(newTableHTML);
             const newFormIds = getFormIds(newData);
-
-            const hasChanged = newFormIds.length !== currentFormIds.length ||
-                               newFormIds.some((id, idx) => id !== currentFormIds[idx]);
-
+            const hasChanged = newFormIds.length !== currentFormIds.length || newFormIds.some((id, idx) => id !== currentFormIds[idx]);
             const now = new Date();
             const timeString = now.toLocaleString("en-US", {
-              timeZone: "Pacific/Honolulu",
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              timeZoneName: 'short'
+              timeZone: "Pacific/Honolulu", year: 'numeric', month: 'short', day: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
             });
-
             if (hasChanged) {
               table.replaceData(newData);
               statusText.textContent = `✅ Table refreshed! (Last Update: ${timeString})`;
               toggleButtonsDisabled(false);
               return;
             }
-
           } catch (err) {
             statusText.textContent = `❌ Error fetching update: ${err.message}`;
             toggleButtonsDisabled(false);
             return;
           }
         }
-
         const finalTime = new Date().toLocaleString("en-US", {
-          timeZone: "Pacific/Honolulu",
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          timeZoneName: 'short'
+          timeZone: "Pacific/Honolulu", year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
         });
-
         statusText.textContent = `⚠️ No updates found! (Last Update: ${finalTime})`;
       } catch (e) {
         statusText.textContent = `❌ Refresh failed: ${e.message}`;
