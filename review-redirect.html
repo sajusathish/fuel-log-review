@@ -9,38 +9,41 @@
     :root{
       --ink:#2c3e50;
       --muted:#5d6d7e;
-      --surface:#fff;
       --bg:#f6f8fb;
       --brand:#2980b9;
       --ok:#27ae60;
       --danger:#c0392b;
       --ring:rgba(41,128,185,.15);
-      --card-shadow:0 10px 30px rgba(0,0,0,.08);
+      --line:#dfe6ee;
     }
-    html, body {
+    html, body{
       margin:0; padding:0; width:100%;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background:var(--bg); color:#222;
-      height:100vh; display:flex; flex-direction:column; align-items:center;
+      height:100vh; display:flex; flex-direction:column;
     }
 
-    /* header area */
-    .page-wrap{ width:min(1100px,95vw); }
+    /* layout – go wide, not a card */
+    .page-wrap{
+      width:min(1600px, 98vw);
+      margin: 22px auto 0;
+      padding: 0 10px; /* small breathing room on very wide screens */
+    }
+
     .greeting{
-      margin:24px 0 8px;
-      font-size:28px; font-weight:800; letter-spacing:.2px; color:var(--ink);
+      margin:0 0 4px;
+      font-size:32px; font-weight:800; letter-spacing:.2px; color:var(--ink);
     }
     .subtext{
       margin:0 0 14px;
       font-size:14px; color:var(--muted);
     }
-    /* smaller, tidy date title */
+
     .date-title{
-      display:flex; align-items:center; gap:8px;
-      margin:0 0 14px;
-      font-weight:700; color:var(--ink);
-      font-size:16px; text-transform:uppercase; letter-spacing:.6px;
-      opacity:.9;
+      display:flex; align-items:center; gap:10px;
+      margin:0 0 10px;
+      font-weight:800; color:var(--ink);
+      font-size:15px; text-transform:uppercase; letter-spacing:.5px;
     }
     .date-chip{
       font-weight:700; font-size:13px; color:#1f2d3a;
@@ -48,33 +51,33 @@
       padding:2px 8px; border-radius:999px;
     }
 
-    /* table */
+    /* table container – full width, no inner padding */
     #fuel-log-table{
-      border:1px solid #dfe6ee;
-      background:var(--surface);
-      border-radius:12px;
-      box-shadow:var(--card-shadow);
-      padding:8px;
       width:100%;
+      border:1px solid var(--line);
+      border-radius:8px;
       box-sizing:border-box;
+      background:#fff;
     }
 
     /* buttons row */
     .buttons{
-      margin:18px 0 26px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap; width:100%;
+      width:100%;
+      display:flex; gap:14px; align-items:center; justify-content:center;
+      margin:16px 0 22px;
+      flex-wrap:wrap;
     }
     button{
-      cursor:pointer; border:none; height:42px; width:200px; border-radius:10px;
+      cursor:pointer; border:none; height:42px; width:200px; border-radius:8px;
       font-size:15px; font-weight:700; color:#fff; background:var(--brand);
-      box-shadow:0 6px 14px rgba(41,128,185,.22);
-      transition:transform .15s, box-shadow .2s, background .2s; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow:0 6px 14px rgba(41,128,185,.18);
+      transition:transform .15s, box-shadow .2s, background .2s;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
     }
-    button:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 10px 18px rgba(0,0,0,.18); }
+    button:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 10px 18px rgba(0,0,0,.16); }
     button:disabled{ cursor:not-allowed; opacity:.6; box-shadow:none; transform:none; }
-    button.approve{ background:var(--ok); }
-    button.approve:hover:not(:disabled){ background:#1e8449; }
-    button.reject{ background:var(--danger); }
-    button.reject:hover:not(:disabled){ background:#922b21; }
+    button.approve{ background:var(--ok); }   button.approve:hover:not(:disabled){ background:#1e8449; }
+    button.reject{ background:var(--danger); } button.reject:hover:not(:disabled){ background:#922b21; }
 
     /* status */
     #statusText{
@@ -87,7 +90,7 @@
     /* modal */
     .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999; }
     .modal{
-      width:min(560px,92vw); background:#fff; border-radius:14px; box-shadow:0 18px 40px rgba(0,0,0,.25);
+      width:min(560px,92vw); background:#fff; border-radius:12px; box-shadow:0 18px 40px rgba(0,0,0,.25);
       overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; outline:none;
     }
     .modal-header{ display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid #eef2f7; background:#fbfbfd; }
@@ -96,7 +99,6 @@
     .modal-body{ padding:16px 18px; display:grid; gap:12px; }
     .modal-help{ font-size:14px; color:var(--muted); }
     .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#2c3e50; background:#ecf5ff; border:1px solid #d6ebff; padding:4px 8px; border-radius:999px; width:max-content; }
-    /* alignment fix */
     .modal textarea{
       width:100%; min-height:110px; border:1px solid #dce3ec; border-radius:10px; padding:10px 12px;
       font-family:inherit; font-size:14px; resize:vertical; outline:none; box-sizing:border-box; margin:0;
@@ -104,11 +106,13 @@
     .modal textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 3px var(--ring); }
     .char-hint{ font-size:12px; color:#7b8a97; text-align:right; margin-top:4px; padding-right:2px; }
     .modal-footer{ display:flex; justify-content:flex-end; gap:10px; padding:14px 18px; border-top:1px solid #eef2f7; background:#fbfbfd; }
-    .btn-secondary{ background:#eef2f7; color:#2c3e50; }
-    .btn-secondary:hover{ background:#e3e8ef; }
-    .btn-danger{ background:var(--danger); color:#fff; }
-    .btn-danger:hover{ background:#922b21; }
-    .hidden{ display:none; }
+    .btn-secondary{ background:#eef2f7; color:#2c3e50; } .btn-secondary:hover{ background:#e3e8ef; }
+    .btn-danger{ background:var(--danger); color:#fff; } .btn-danger:hover{ background:#922b21; }
+
+    /* tabulator small visual tweaks to better “full-width” feel */
+    .tabulator{ border:none; }
+    .tabulator-header{ border-bottom:1px solid var(--line); }
+    .tabulator-row{ border-bottom:1px solid #f0f3f7; }
   </style>
 </head>
 <body>
@@ -143,9 +147,9 @@
         <div class="badge" id="selectedCount">0 selected</div>
         <div class="modal-help">Add a short reason so the submitter knows what to fix.</div>
         <label for="rejectReason" class="modal-help" style="font-weight:600;color:#34495e;">Reason</label>
-        <textarea id="rejectReason" placeholder="Example: Missing Location details on form. Please reupload and resubmit."></textarea>
+        <textarea id="rejectReason" placeholder="Example: Missing receipt image for Fuel ID 123. Please reupload and resubmit."></textarea>
         <div class="char-hint"><span id="chars">0</span>/500</div>
-        <div id="rejectError" class="modal-help hidden" style="color:#c0392b;">Please enter a reason.</div>
+        <div id="rejectError" class="modal-help" style="color:#c0392b; display:none;">Please enter a reason.</div>
       </div>
       <div class="modal-footer">
         <button id="cancelReject" class="btn-secondary">Cancel</button>
@@ -159,7 +163,19 @@
     // date chip
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
-    // helpers
+    // url params and greeting
+    const params = new URLSearchParams(window.location.search);
+    const reviewer = params.get('reviewer') || 'unknown@domain.com';
+
+    function nameFromEmail(mail){
+      const local = (mail || '').split('@')[0] || '';
+      if(!local) return 'Reviewer';
+      return local.charAt(0).toUpperCase() + local.slice(1);
+    }
+    document.getElementById('greeting').textContent = `Hello ${nameFromEmail(reviewer)}`;
+    document.getElementById('subtext').textContent = `Review today’s fuel logs. Select rows, then approve or add a rejection reason.`;
+
+    // decode helpers (unchanged)
     function base64UrlDecode(input){
       try{
         const base64 = input.replace(/-/g,'+').replace(/_/g,'/');
@@ -167,7 +183,6 @@
         return decodeURIComponent(escape(decoded));
       }catch(e){ console.error("Decode error", e); return null; }
     }
-
     function parseTableHTMLtoData(html){
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
@@ -182,7 +197,6 @@
         return obj;
       });
     }
-
     function getColumnsFromHeaders(headers){
       const filtered = headers.filter(h => h.toLowerCase() !== 'select');
       return [{
@@ -192,21 +206,9 @@
       })));
     }
 
-    // url params and greeting
-    const params = new URLSearchParams(window.location.search);
-    const dataEncoded = params.get('data');
-    const reviewer = params.get('reviewer') || 'unknown@domain.com';
-
-    function nameFromEmail(mail){
-      const local = (mail || '').split('@')[0] || '';
-      if(!local) return 'Reviewer';
-      return local.charAt(0).toUpperCase() + local.slice(1); // Satish.s from satish.s
-    }
-    document.getElementById('greeting').textContent = `Hello ${nameFromEmail(reviewer)}`;
-    // optional: tweak subtext per person if you ever want
-
-    // table init
+    // table init (logic unchanged)
     let table;
+    const dataEncoded = params.get('data');
     if(dataEncoded){
       const tableHTML = base64UrlDecode(dataEncoded);
       if(tableHTML){
@@ -228,13 +230,13 @@
             pagination: false,
             initialSort: [{ column: columns[1].field, dir: "asc" }]
           });
-        }else{
+        } else {
           document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>No table found in data.</p>";
         }
-      }else{
+      } else {
         document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
       }
-    }else{
+    } else {
       document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
     }
 
@@ -272,10 +274,10 @@
       }
     }
 
-    // buttons
+    // approve unchanged
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
-    // modal refs
+    // modal
     const overlay = document.getElementById("rejectOverlay");
     const modal = document.getElementById("rejectModal");
     const reasonEl = document.getElementById("rejectReason");
@@ -290,7 +292,7 @@
       if(!formIds){ alert("Please select at least one form."); return; }
       const selectedCount = formIds.split(",").filter(Boolean).length;
       countEl.textContent = `${selectedCount} selected`;
-      reasonEl.value = ""; charsEl.textContent = "0"; errEl.classList.add("hidden");
+      reasonEl.value = ""; if(charsEl) charsEl.textContent = "0"; errEl.style.display = "none";
       overlay.style.display = "flex"; overlay.setAttribute("aria-hidden","false"); modal.focus();
     }
     function closeRejectModal(){ overlay.style.display = "none"; overlay.setAttribute("aria-hidden","true"); }
@@ -298,8 +300,8 @@
     reasonEl.addEventListener("input", () => {
       const max = 500;
       if (reasonEl.value.length > max) reasonEl.value = reasonEl.value.slice(0, max);
-      charsEl.textContent = String(reasonEl.value.length);
-      if (reasonEl.value.trim().length > 0) errEl.classList.add("hidden");
+      if(charsEl) charsEl.textContent = String(reasonEl.value.length);
+      if (reasonEl.value.trim().length > 0) errEl.style.display = "none";
     });
 
     overlay.addEventListener("click", e => { if (e.target === overlay) closeRejectModal(); });
@@ -308,7 +310,7 @@
 
     confirmBtn.addEventListener("click", async () => {
       const reason = reasonEl.value.trim();
-      if (!reason) { errEl.classList.remove("hidden"); reasonEl.focus(); return; }
+      if (!reason) { errEl.style.display = "block"; reasonEl.focus(); return; }
       closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
     });
