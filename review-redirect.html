@@ -37,7 +37,6 @@
       margin:0 0 14px;
       font-size:14px; color:var(--muted);
     }
-
     /* camel case title, no uppercase transform */
     .date-title{
       display:flex; align-items:center; gap:10px;
@@ -111,12 +110,16 @@
     .tabulator{ border:none; }
     .tabulator-header{ border-bottom:1px solid var(--line); }
     .tabulator-row{ border-bottom:1px solid #f0f3f7; }
+
+    #Darktext{
+      color:red
+    }
   </style>
 </head>
 <body>
   <div class="page-wrap">
     <div id="greeting" class="greeting">Hello</div>
-    <p id="subtext" class="subtext">Review fuel logs. Select rows, then approve or reject forms. Its a good practice to refresh the table before approving or rejecting to avoid working on a outdated database.</p>
+    <p id="subtext" class="subtext">Review fuel logs. Select rows, then approve or reject forms. <span id="Darktext"> Its a good practice to refresh the table before approving or rejecting to avoid working on a outdated database.</span></p>
 
     <div class="date-title">
       <span id="titleText">Daily fuel log review</span>
