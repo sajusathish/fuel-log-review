@@ -5,99 +5,22 @@
   <title>ACC New Form Redirect</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root {
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color-scheme: dark;
-    }
     body {
-      margin: 0;
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
       display: grid;
       place-items: center;
       min-height: 100vh;
-      background: #111;
-      color: #eee;
-      padding: 1rem;
-    }
-    .card {
-      width: 96%;
-      max-width: 520px;
-      background: #1b1b1b;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin: 0 0 8px;
-      color: #fff;
-    }
-    p {
-      margin: 8px 0;
-      line-height: 1.5;
-      font-size: 0.95rem;
-    }
-    .log {
-      background: #0f0f0f;
-      border: 1px solid #242424;
-      padding: 10px;
-      border-radius: 8px;
-      height: 180px;
-      overflow: auto;
-      font-size: 12px;
-      white-space: pre-wrap;
-      font-family: monospace;
-      color: #b4b4b4;
-    }
-    .btn {
-      display: inline-block;
-      padding: 10px 18px;
-      border-radius: 8px;
-      background: #3a81ff;
-      color: #fff;
-      text-decoration: none;
-      border: 0;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background-color 0.2s ease;
-    }
-    .btn:hover {
-      background: #2c6be6;
-    }
-    .btn:disabled {
-      opacity: .6;
-      cursor: not-allowed;
-    }
-    .row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 1rem;
-    }
-
-    @media (min-width: 600px) {
-      body {
-        padding: 2rem;
-      }
-      .card {
-        padding: 24px;
-      }
-      h1 {
-        font-size: 1.75rem;
-      }
+      margin: 0;
+      font-size: 14px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>ACC new form</h1>
-    <p id="status">Starting…</p>
-    <div class="row">
-      <button id="startBtn" class="btn" style="display:none">Sign in and create form</button>
-      <button id="resetBtn" class="btn" style="display:none;background:#666">Reset</button>
-    </div>
-    <div class="log" id="log" aria-live="polite"></div>
-  </div>
+  <p>Redirecting to Autodesk Construction Cloud...</p>
+  <p>Please wait or check the browser console for details.</p>
 
 <script>
 const CONFIG = {
@@ -115,78 +38,79 @@ const API_BASE = "https://developer.api.autodesk.com/construction/forms/v1";
 const q = new URLSearchParams(window.location.search);
 const projectId  = q.get("project_id")  || CONFIG.defaultProjectId;
 const templateId = q.get("template_id") || CONFIG.defaultTemplateId;
-const titleParam = q.get("title") || "QR Form";
-const statusParam = q.get("status") || "draft";
 
-const ui = {
-  status: document.getElementById("status"),
-  log: document.getElementById("log"),
-  startBtn: document.getElementById("startBtn"),
-  resetBtn: document.getElementById("resetBtn")
-};
+// The log function now prints to the console
+function log(msg) { console.log(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)); }
 
-function log(msg){ ui.log.textContent += (typeof msg==="string"?msg:JSON.stringify(msg,null,2)) + "\n"; }
-
-function assertInputs(){
-  if(!CONFIG.clientId) throw new Error("Missing clientId");
-  if(!CONFIG.clientSecret) throw new Error("Missing clientSecret");
-  if(!CONFIG.redirectUri) throw new Error("Missing redirectUri");
-  if(!CONFIG.scopes) throw new Error("Missing scopes");
-  if(!projectId) throw new Error("Missing project_id");
-  if(!templateId) throw new Error("Missing template_id");
+function assertInputs() {
+  if (!CONFIG.clientId) throw new Error("Missing clientId");
+  if (!CONFIG.clientSecret) throw new Error("Missing clientSecret");
+  if (!CONFIG.redirectUri) throw new Error("Missing redirectUri");
+  if (!CONFIG.scopes) throw new Error("Missing scopes");
+  if (!projectId) throw new Error("Missing project_id");
+  if (!templateId) throw new Error("Missing template_id");
 }
 
-function b64url(buf){
-  const bytes=new Uint8Array(buf); let str="";
-  for(let i=0;i<bytes.byteLength;i++) str+=String.fromCharCode(bytes[i]);
-  return btoa(str).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+function b64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let str = "";
+  for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-function randomString(len=64){
-  const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
-  const arr=new Uint8Array(len); crypto.getRandomValues(arr);
-  return Array.from(arr).map(x=>c[x%c.length]).join("");
+function randomString(len = 64) {
+  const c = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(x => c[x % c.length]).join("");
 }
-async function sha256(str){
-  const enc=new TextEncoder().encode(str);
-  return await crypto.subtle.digest("SHA-256",enc);
+async function sha256(str) {
+  const enc = new TextEncoder().encode(str);
+  return await crypto.subtle.digest("SHA-256", enc);
 }
 
-async function startOAuth(){
-  const codeVerifier=randomString(64);
-  const codeChallenge=b64url(await sha256(codeVerifier));
-  const state=randomString(16);
-  sessionStorage.setItem("pkce_verifier",codeVerifier);
-  sessionStorage.setItem("oauth_state",state);
-  sessionStorage.setItem("pending_params",JSON.stringify({projectId,templateId,titleParam,statusParam}));
+async function startOAuth() {
+  const codeVerifier = randomString(64);
+  const codeChallenge = b64url(await sha256(codeVerifier));
+  const state = randomString(16);
+  sessionStorage.setItem("pkce_verifier", codeVerifier);
+  sessionStorage.setItem("oauth_state", state);
+  sessionStorage.setItem("pending_params", JSON.stringify({ projectId, templateId }));
 
-  const authUrl=new URL(AUTH_BASE+"/authorize");
-  authUrl.searchParams.set("response_type","code");
-  authUrl.searchParams.set("client_id",CONFIG.clientId);
-  authUrl.searchParams.set("redirect_uri",CONFIG.redirectUri);
-  authUrl.searchParams.set("scope",CONFIG.scopes);
-  authUrl.searchParams.set("code_challenge",codeChallenge);
-  authUrl.searchParams.set("code_challenge_method","S256");
-  authUrl.searchParams.set("state",state);
+  const authUrl = new URL(AUTH_BASE + "/authorize");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", CONFIG.clientId);
+  authUrl.searchParams.set("redirect_uri", CONFIG.redirectUri);
+  authUrl.searchParams.set("scope", CONFIG.scopes);
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("state", state);
 
-  log("Authorize URL:\n"+authUrl.toString());
+  log("Redirecting to authorize URL...");
   window.location = authUrl.toString();
 }
 
-async function exchangeCodeForToken(code,verifier){
-  const body=new URLSearchParams();
-  body.set("grant_type","authorization_code");
-  body.set("client_id",CONFIG.clientId);
+async function exchangeCodeForToken(code, verifier) {
+  const body = new URLSearchParams();
+  body.set("grant_type", "authorization_code");
+  body.set("client_id", CONFIG.clientId);
   body.set("client_secret", CONFIG.clientSecret);
-  body.set("code",code);
-  body.set("redirect_uri",CONFIG.redirectUri);
-  body.set("code_verifier",verifier);
+  body.set("code", code);
+  body.set("redirect_uri", CONFIG.redirectUri);
+  body.set("code_verifier", verifier);
 
-  const res=await fetch(AUTH_BASE+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
-  if(!res.ok){ const t=await res.text(); throw new Error("Token exchange failed: "+t); }
+  const res = await fetch(AUTH_BASE + "/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error("Token exchange failed: " + t);
+  }
   return await res.json();
 }
 
-async function createForm(accessToken, params){
+async function createForm(accessToken, params) {
   const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/form-templates/${encodeURIComponent(params.templateId)}/forms`;
   const body = {};
   log("POST " + url);
@@ -200,73 +124,48 @@ async function createForm(accessToken, params){
     body: JSON.stringify(body)
   });
   const data = await res.json().catch(() => ({}));
-  if(!res.ok) throw new Error("Create failed " + res.status + ": " + JSON.stringify(data));
+  if (!res.ok) throw new Error("Create failed " + res.status + ": " + JSON.stringify(data));
   return data;
 }
 
-function resetFlow(){
-  sessionStorage.clear();
-  const clean = CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId) + "&ts=" + Date.now();
-  window.location = clean;
-}
+async function main() {
+  try {
+    assertInputs();
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
 
-async function main(){
-  ui.startBtn.onclick = startOAuth;
-  ui.resetBtn.onclick = resetFlow;
+    if (!code) {
+      log("Starting OAuth flow. Authorization required.");
+      startOAuth();
+      return;
+    }
 
-  try{ assertInputs(); }catch(e){
-    ui.status.textContent=e.message;
-    ui.startBtn.style.display="inline-block";
-    ui.resetBtn.style.display="inline-block";
-    log("Tip: open the github.io page, not the github.com repo view");
-    return;
-  }
+    log("Exchanging code for token...");
+    const expectedState = sessionStorage.getItem("oauth_state");
+    if (state !== expectedState) {
+      throw new Error("State mismatch: possible CSRF attack.");
+    }
 
-  const url=new URL(window.location.href);
-  const code=url.searchParams.get("code");
-  const state=url.searchParams.get("state");
+    const verifier = sessionStorage.getItem("pkce_verifier");
+    const pendingParams = JSON.parse(sessionStorage.getItem("pending_params") || "{}");
 
-  if(!code){
-    ui.status.textContent="Sign in required";
-    ui.startBtn.style.display="inline-block";
-    ui.resetBtn.style.display="inline-block";
-    log("Ready to start OAuth");
-    log("Configured scopes: "+CONFIG.scopes);
-    log("Redirect URI: "+CONFIG.redirectUri);
-    return;
-  }
+    const token = await exchangeCodeForToken(code, verifier);
+    log("Token received. Creating form...");
 
-  ui.startBtn.style.display="none";
-  ui.resetBtn.style.display="inline-block";
-  ui.status.textContent="Exchanging code for token…";
-
-  const expectedState=sessionStorage.getItem("oauth_state");
-  if(state!==expectedState){ ui.status.textContent="State mismatch"; log("State mismatch"); return; }
-
-  const verifier=sessionStorage.getItem("pkce_verifier");
-  const pendingParams=JSON.parse(sessionStorage.getItem("pending_params")||"{}");
-
-  try{
-    const token=await exchangeCodeForToken(code,verifier);
-    log("Token ok. Creating form…");
-    ui.status.textContent="Creating form…";
-
-    const created=await createForm(token.access_token,pendingParams);
-    
-    // NEW LOGIC: Construct the webUrl directly from the API response data and your URL format
+    const created = await createForm(token.access_token, pendingParams);
     const targetUrl = `https://acc.autodesk.com/build/forms/projects/${created.projectId}/field-reports/${created.formTemplate.id}/reports/${created.id}`;
 
-    if(targetUrl){
-      ui.status.textContent="Redirecting to ACC…";
-      history.replaceState({}, "", CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId));
-      window.location = targetUrl;
-    }else{
-      ui.status.textContent="Form created. Could not resolve webUrl.";
-      log({created});
-    }
-  }catch(err){
-    ui.status.textContent="Error";
-    log(err.message||err);
+    log("Redirecting to ACC...");
+    history.replaceState({}, "", CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId));
+    window.location = targetUrl;
+
+  } catch (err) {
+    console.error("An error occurred:", err);
+    document.body.innerHTML = `
+      <p>An error occurred. Please check the console for details.</p>
+      <button onclick="window.location.href = window.location.origin + window.location.pathname" style="padding:10px;border-radius:8px;background:#3a81ff;color:#fff;border:0;cursor:pointer;">Try Again</button>
+    `;
   }
 }
 main();
