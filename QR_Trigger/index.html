@@ -31,17 +31,15 @@
 const CONFIG = {
   clientId: "NbT4Ri9gKKGNXHNCBzQF3pdk2r8PzNqhNjqb0Ak7rhBWGvb0",
   clientSecret: "N5U11KHQPaDBhFKgGW4RSAG7GHyulYUzw3t5uN25G9ldlffudM0XepjZNRxIumPo",
-  // Must exactly match the Redirect URI registered in your APS app (case and trailing slash matter)
   redirectUri: "https://sajusathish.github.io/fuel-log-review/QR_Trigger/",
-  // Scopes are case-sensitive
   scopes: "data:read data:write data:create account:read",
-  // Defaults so the QR can be short; URL params override these
   defaultProjectId: "f94d12c8-f951-45a5-b1c3-8419a37750fb",
   defaultTemplateId: "904f2c31-f161-4f91-a20a-774e0df6d933"
 };
 
 const AUTH_BASE = "https://developer.api.autodesk.com/authentication/v2";
-const API_BASE  = "https://developer.api.autodesk.com/construction/forms/v1";
+const API_BASE = "https://developer.api.autodesk.com/construction/forms/v1";
+const WEB_API_BASE = "https://developer.api.autodesk.com/acc/web/v1";
 
 const q = new URLSearchParams(window.location.search);
 const projectId  = q.get("project_id")  || CONFIG.defaultProjectId;
@@ -135,20 +133,16 @@ async function createForm(accessToken, params){
   return data;
 }
 
-async function getFormById(accessToken, params, formId){
-  const byIdUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms/${encodeURIComponent(formId)}`;
-  log("GET " + byIdUrl);
-  let res = await fetch(byIdUrl, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
+// NEW FUNCTION: Fetches the form's web URL from the correct web endpoint
+async function getFormWebUrl(accessToken, projectId, formId){
+  const url = `${WEB_API_BASE}/projects/${encodeURIComponent(projectId)}/forms/${encodeURIComponent(formId)}`;
+  log("GET " + url);
+  const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
   if(res.ok){
-    return await res.json();
+    const data = await res.json();
+    return data.webUrl || null;
   }
-  const listUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
-  log("GET " + listUrl + " (fallback)");
-  res = await fetch(listUrl, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
-  if(!res.ok) return null;
-  const json = await res.json();
-  const hit = Array.isArray(json?.results) ? json.results.find(x => x.id === formId) : null;
-  return hit || null;
+  return null;
 }
 
 function resetFlow(){
@@ -199,12 +193,9 @@ async function main(){
     ui.status.textContent="Creating form…";
 
     const created=await createForm(token.access_token,pendingParams);
-    let targetUrl=created.webUrl || null;
-
-    if(!targetUrl){
-      const detail=await getFormById(token.access_token,pendingParams,created.id);
-      targetUrl = detail?.webUrl || null;
-    }
+    
+    // NEW LOGIC: Fetch the webUrl from the separate web API endpoint
+    const targetUrl = await getFormWebUrl(token.access_token, created.projectId, created.id);
 
     if(targetUrl){
       ui.status.textContent="Redirecting to ACC…";
