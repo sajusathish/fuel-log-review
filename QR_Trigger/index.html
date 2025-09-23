@@ -10,24 +10,31 @@
     .card{width:96%;max-width:520px;background:#1b1b1b;border:1px solid #2a2a2a;border-radius:12px;padding:16px}
     h1{font-size:18px;margin:0 0 8px}
     p{margin:8px 0;line-height:1.45}
-    .log{background:#0f0f0f;border:1px solid #242424;padding:10px;border-radius:8px;height:160px;overflow:auto;font-size:12px;white-space:pre-wrap}
+    .log{background:#0f0f0f;border:1px solid #242424;padding:10px;border-radius:8px;height:180px;overflow:auto;font-size:12px;white-space:pre-wrap}
     .btn{display:inline-block;padding:10px 14px;border-radius:8px;background:#3a81ff;color:#fff;text-decoration:none;border:0;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
   </style>
 </head>
 <body>
   <div class="card">
     <h1>ACC new form</h1>
     <p id="status">Starting…</p>
+    <div class="row">
+      <button id="startBtn" class="btn" style="display:none">Sign in and create form</button>
+      <button id="resetBtn" class="btn" style="display:none;background:#666">Reset</button>
+    </div>
     <div class="log" id="log" aria-live="polite"></div>
-    <p><button id="startBtn" class="btn" style="display:none">Sign in and create form</button></p>
   </div>
 
 <script>
-  const CONFIG = {
-  clientId: "NbT4Ri9gKKGNXHNCBzQF3pdk2r8PzNqhNjqb0Ak7rhBWGvb0",
+const CONFIG = {
+  clientId: "YOUR_APS_CLIENT_ID",
+  // Must exactly match the Redirect URI registered in your APS app (case and trailing slash matter)
   redirectUri: "https://sajusathish.github.io/fuel-log-review/QR_Trigger/",
+  // Scopes are case-sensitive
   scopes: "data:read data:write data:create project:read account:read",
+  // Defaults so the QR can be short; URL params override these
   defaultProjectId: "f94d12c8-f951-45a5-b1c3-8419a37750fb",
   defaultTemplateId: "904f2c31-f161-4f91-a20a-774e0df6d933"
 };
@@ -44,7 +51,8 @@ const statusParam = q.get("status") || "draft";
 const ui = {
   status: document.getElementById("status"),
   log: document.getElementById("log"),
-  startBtn: document.getElementById("startBtn")
+  startBtn: document.getElementById("startBtn"),
+  resetBtn: document.getElementById("resetBtn")
 };
 
 function log(msg){ ui.log.textContent += (typeof msg==="string"?msg:JSON.stringify(msg,null,2)) + "\n"; }
@@ -52,6 +60,7 @@ function log(msg){ ui.log.textContent += (typeof msg==="string"?msg:JSON.stringi
 function assertInputs(){
   if(!CONFIG.clientId) throw new Error("Missing clientId");
   if(!CONFIG.redirectUri) throw new Error("Missing redirectUri");
+  if(!CONFIG.scopes) throw new Error("Missing scopes");
   if(!projectId) throw new Error("Missing project_id");
   if(!templateId) throw new Error("Missing template_id");
 }
@@ -88,7 +97,7 @@ async function startOAuth(){
   authUrl.searchParams.set("code_challenge_method","S256");
   authUrl.searchParams.set("state",state);
 
-  log("Authorize URL:\n"+authUrl.toString()); // helpful if it errors
+  log("Authorize URL:\n"+authUrl.toString());
   window.location = authUrl.toString();
 }
 
@@ -102,10 +111,11 @@ async function exchangeCodeForToken(code,verifier){
 
   const res=await fetch(AUTH_BASE+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
   if(!res.ok){ const t=await res.text(); throw new Error("Token exchange failed: "+t); }
-  return await res.json();
+  return await res.json(); // { access_token, expires_in, token_type, refresh_token? }
 }
 
 async function createForm(accessToken, params){
+  // Official create endpoint; JSON body required even if {}
   const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
   const body = { templateId: params.templateId, title: params.titleParam, status: params.statusParam };
   log("POST "+url);
@@ -120,30 +130,63 @@ async function createForm(accessToken, params){
   });
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error("Create failed "+res.status+": "+JSON.stringify(data));
-  return data;
+  return data; // expect { id, webUrl? ... }
 }
 
-async function getFormDetail(accessToken, params, formId){
-  const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
-  log("GET "+url+" (resolve webUrl)");
-  const res = await fetch(url,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
+async function getFormById(accessToken, params, formId){
+  // Try direct GET by id first; if not available, fallback to list
+  const byIdUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms/${encodeURIComponent(formId)}`;
+  log("GET "+byIdUrl);
+  let res = await fetch(byIdUrl,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
+  if(res.ok){
+    return await res.json();
+  }
+  // Fallback to list and match
+  const listUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
+  log("GET "+listUrl+" (fallback)");
+  res = await fetch(listUrl,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
   if(!res.ok) return null;
   const json = await res.json();
   const hit = Array.isArray(json?.results) ? json.results.find(x=>x.id===formId) : null;
   return hit || null;
 }
 
+function resetFlow(){
+  sessionStorage.clear();
+  const clean = CONFIG.redirectUri + "?project_id="+encodeURIComponent(projectId)+"&template_id="+encodeURIComponent(templateId)+"&ts="+Date.now();
+  window.location = clean;
+}
+
 async function main(){
   ui.startBtn.onclick = startOAuth;
-  try{ assertInputs(); }catch(e){ ui.status.textContent=e.message; ui.startBtn.style.display="inline-block"; log("Tip: open the GitHub Pages URL, not the repo page"); return; }
+  ui.resetBtn.onclick = resetFlow;
+
+  try{ assertInputs(); }catch(e){
+    ui.status.textContent=e.message;
+    ui.startBtn.style.display="inline-block";
+    ui.resetBtn.style.display="inline-block";
+    log("Tip: open the github.io page, not the github.com repo view");
+    return;
+  }
 
   const url=new URL(window.location.href);
   const code=url.searchParams.get("code");
   const state=url.searchParams.get("state");
-  if(!code){ ui.status.textContent="Sign in required"; ui.startBtn.style.display="inline-block"; log("Ready to start OAuth"); return; }
+
+  if(!code){
+    ui.status.textContent="Sign in required";
+    ui.startBtn.style.display="inline-block";
+    ui.resetBtn.style.display="inline-block";
+    log("Ready to start OAuth");
+    log("Configured scopes: "+CONFIG.scopes);
+    log("Redirect URI: "+CONFIG.redirectUri);
+    return;
+  }
 
   ui.startBtn.style.display="none";
+  ui.resetBtn.style.display="inline-block";
   ui.status.textContent="Exchanging code for token…";
+
   const expectedState=sessionStorage.getItem("oauth_state");
   if(state!==expectedState){ ui.status.textContent="State mismatch"; log("State mismatch"); return; }
 
@@ -159,13 +202,14 @@ async function main(){
     let targetUrl=created.webUrl || null;
 
     if(!targetUrl){
-      const detail=await getFormDetail(token.access_token,pendingParams,created.id);
+      const detail=await getFormById(token.access_token,pendingParams,created.id);
       targetUrl = detail?.webUrl || null;
     }
+
     if(targetUrl){
       ui.status.textContent="Redirecting to ACC…";
       history.replaceState({}, "", CONFIG.redirectUri + "?project_id="+encodeURIComponent(projectId)+"&template_id="+encodeURIComponent(templateId));
-      window.location = targetUrl;
+      window.location = targetUrl; // navigate to the created form
     }else{
       ui.status.textContent="Form created. Could not resolve webUrl.";
       log({created});
@@ -179,7 +223,3 @@ main();
 </script>
 </body>
 </html>
-
-
-
-
