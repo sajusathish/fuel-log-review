@@ -1,1 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ACC New Form Redirect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <p>Redirecting to Autodesk Construction Cloud...</p>
+  <p>Please wait or check the browser console for details.</p>
+
+<script>
+const CONFIG = {
+  clientId: "NbT4Ri9gKKGNXHNCBzQF3pdk2r8PzNqhNjqb0Ak7rhBWGvb0",
+  clientSecret: "N5U11KHQPaDBhFKgGW4RSAG7GHyulYUzw3t5uN25G9ldlffudM0XepjZNRxIumPo",
+  redirectUri: "https://sajusathish.github.io/fuel-log-review/QR_Trigger/",
+  scopes: "data:read data:write data:create account:read",
+  defaultProjectId: "f94d12c8-f951-45a5-b1c3-8419a37750fb",
+  defaultTemplateId: "904f2c31-f161-4f91-a20a-774e0df6d933"
+};
+
+const AUTH_BASE = "https://developer.api.autodesk.com/authentication/v2";
+const API_BASE = "https://developer.api.autodesk.com/construction/forms/v1";
+
+const q = new URLSearchParams(window.location.search);
+const projectId  = q.get("project_id")  || CONFIG.defaultProjectId;
+const templateId = q.get("template_id") || CONFIG.defaultTemplateId;
+
+// The log function now prints to the console
+function log(msg) { console.log(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)); }
+
+function assertInputs() {
+  if (!CONFIG.clientId) throw new Error("Missing clientId");
+  if (!CONFIG.clientSecret) throw new Error("Missing clientSecret");
+  if (!CONFIG.redirectUri) throw new Error("Missing redirectUri");
+  if (!CONFIG.scopes) throw new Error("Missing scopes");
+  if (!projectId) throw new Error("Missing project_id");
+  if (!templateId) throw new Error("Missing template_id");
+}
+
+function b64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let str = "";
+  for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function randomString(len = 64) {
+  const c = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(x => c[x % c.length]).join("");
+}
+async function sha256(str) {
+  const enc = new TextEncoder().encode(str);
+  return await crypto.subtle.digest("SHA-256", enc);
+}
+
+async function startOAuth() {
+  const codeVerifier = randomString(64);
+  const codeChallenge = b64url(await sha256(codeVerifier));
+  const state = randomString(16);
+  sessionStorage.setItem("pkce_verifier", codeVerifier);
+  sessionStorage.setItem("oauth_state", state);
+  sessionStorage.setItem("pending_params", JSON.stringify({ projectId, templateId }));
+
+  const authUrl = new URL(AUTH_BASE + "/authorize");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", CONFIG.clientId);
+  authUrl.searchParams.set("redirect_uri", CONFIG.redirectUri);
+  authUrl.searchParams.set("scope", CONFIG.scopes);
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("state", state);
+
+  log("Redirecting to authorize URL...");
+  window.location = authUrl.toString();
+}
+
+async function exchangeCodeForToken(code, verifier) {
+  const body = new URLSearchParams();
+  body.set("grant_type", "authorization_code");
+  body.set("client_id", CONFIG.clientId);
+  body.set("client_secret", CONFIG.clientSecret);
+  body.set("code", code);
+  body.set("redirect_uri", CONFIG.redirectUri);
+  body.set("code_verifier", verifier);
+
+  const res = await fetch(AUTH_BASE + "/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error("Token exchange failed: " + t);
+  }
+  return await res.json();
+}
+
+async function createForm(accessToken, params) {
+  const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/form-templates/${encodeURIComponent(params.templateId)}/forms`;
+  const body = {};
+  log("POST " + url);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + accessToken,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error("Create failed " + res.status + ": " + JSON.stringify(data));
+  return data;
+}
+
+async function main() {
+  try {
+    assertInputs();
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+
+    if (!code) {
+      log("Starting OAuth flow. Authorization required.");
+      startOAuth();
+      return;
+    }
+
+    log("Exchanging code for token...");
+    const expectedState = sessionStorage.getItem("oauth_state");
+    if (state !== expectedState) {
+      throw new Error("State mismatch: possible CSRF attack.");
+    }
+
+    const verifier = sessionStorage.getItem("pkce_verifier");
+    const pendingParams = JSON.parse(sessionStorage.getItem("pending_params") || "{}");
+
+    const token = await exchangeCodeForToken(code, verifier);
+    log("Token received. Creating form...");
+
+    const created = await createForm(token.access_token, pendingParams);
+    const targetUrl = `https://acc.autodesk.com/build/forms/projects/${created.projectId}/field-reports/${created.formTemplate.id}/reports/${created.id}`;
+
+    log("Redirecting to ACC...");
+    history.replaceState({}, "", CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId));
+    window.location = targetUrl;
+
+  } catch (err) {
+    console.error("An error occurred:", err);
+    document.body.innerHTML = `
+      <p>An error occurred. Please check the console for details.</p>
+      <button onclick="window.location.href = window.location.origin + window.location.pathname" style="padding:10px;border-radius:8px;background:#3a81ff;color:#fff;border:0;cursor:pointer;">Try Again</button>
+    `;
+  }
+}
+main();
+</script>
+</body>
+</html>
+
+
 
