@@ -39,7 +39,6 @@ const CONFIG = {
 
 const AUTH_BASE = "https://developer.api.autodesk.com/authentication/v2";
 const API_BASE = "https://developer.api.autodesk.com/construction/forms/v1";
-const WEB_API_BASE = "https://developer.api.autodesk.com/acc/web/v1";
 
 const q = new URLSearchParams(window.location.search);
 const projectId  = q.get("project_id")  || CONFIG.defaultProjectId;
@@ -133,18 +132,6 @@ async function createForm(accessToken, params){
   return data;
 }
 
-// NEW FUNCTION: Fetches the form's web URL from the correct web endpoint
-async function getFormWebUrl(accessToken, projectId, formId){
-  const url = `${WEB_API_BASE}/projects/${encodeURIComponent(projectId)}/forms/${encodeURIComponent(formId)}`;
-  log("GET " + url);
-  const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
-  if(res.ok){
-    const data = await res.json();
-    return data.webUrl || null;
-  }
-  return null;
-}
-
 function resetFlow(){
   sessionStorage.clear();
   const clean = CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId) + "&ts=" + Date.now();
@@ -194,8 +181,8 @@ async function main(){
 
     const created=await createForm(token.access_token,pendingParams);
     
-    // NEW LOGIC: Fetch the webUrl from the separate web API endpoint
-    const targetUrl = await getFormWebUrl(token.access_token, created.projectId, created.id);
+    // NEW LOGIC: Construct the webUrl directly from the API response data and your URL format
+    const targetUrl = `https://acc.autodesk.com/build/forms/projects/${created.projectId}/field-reports/${created.formTemplate.id}/reports/${created.id}`;
 
     if(targetUrl){
       ui.status.textContent="Redirecting to ACC…";
