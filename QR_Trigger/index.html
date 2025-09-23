@@ -30,19 +30,18 @@
 <script>
 const CONFIG = {
   clientId: "NbT4Ri9gKKGNXHNCBzQF3pdk2r8PzNqhNjqb0Ak7rhBWGvb0",
-  // ADDED: Your client secret is needed for token exchange
   clientSecret: "N5U11KHQPaDBhFKgGW4RSAG7GHyulYUzw3t5uN25G9ldlffudM0XepjZNRxIumPo",
   // Must exactly match the Redirect URI registered in your APS app (case and trailing slash matter)
   redirectUri: "https://sajusathish.github.io/fuel-log-review/QR_Trigger/",
   // Scopes are case-sensitive
-  scopes: "data:read data:write account:read",
+  scopes: "data:read data:write data:create account:read",
   // Defaults so the QR can be short; URL params override these
   defaultProjectId: "f94d12c8-f951-45a5-b1c3-8419a37750fb",
   defaultTemplateId: "904f2c31-f161-4f91-a20a-774e0df6d933"
 };
 
 const AUTH_BASE = "https://developer.api.autodesk.com/authentication/v2";
-const API_BASE  = "https://developer.api.autodesk.com/acc/v1";
+const API_BASE  = "https://developer.api.autodesk.com/construction/forms/v1";
 
 const q = new URLSearchParams(window.location.search);
 const projectId  = q.get("project_id")  || CONFIG.defaultProjectId;
@@ -61,7 +60,7 @@ function log(msg){ ui.log.textContent += (typeof msg==="string"?msg:JSON.stringi
 
 function assertInputs(){
   if(!CONFIG.clientId) throw new Error("Missing clientId");
-  if(!CONFIG.clientSecret) throw new Error("Missing clientSecret"); // Added check
+  if(!CONFIG.clientSecret) throw new Error("Missing clientSecret");
   if(!CONFIG.redirectUri) throw new Error("Missing redirectUri");
   if(!CONFIG.scopes) throw new Error("Missing scopes");
   if(!projectId) throw new Error("Missing project_id");
@@ -108,56 +107,53 @@ async function exchangeCodeForToken(code,verifier){
   const body=new URLSearchParams();
   body.set("grant_type","authorization_code");
   body.set("client_id",CONFIG.clientId);
-  body.set("client_secret", CONFIG.clientSecret); // ADDED: Your client secret
+  body.set("client_secret", CONFIG.clientSecret);
   body.set("code",code);
   body.set("redirect_uri",CONFIG.redirectUri);
   body.set("code_verifier",verifier);
 
   const res=await fetch(AUTH_BASE+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
   if(!res.ok){ const t=await res.text(); throw new Error("Token exchange failed: "+t); }
-  return await res.json(); // { access_token, expires_in, token_type, refresh_token? }
+  return await res.json();
 }
 
 async function createForm(accessToken, params){
-  // Official create endpoint; JSON body required even if {}
-  const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
-  const body = { templateId: params.templateId, title: params.titleParam, status: params.statusParam };
-  log("POST "+url);
-  const res = await fetch(url,{
-    method:"POST",
-    headers:{
-      "Authorization":"Bearer "+accessToken,
-      "Content-Type":"application/json",
-      "Accept":"application/json"
+  const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/form-templates/${encodeURIComponent(params.templateId)}/forms`;
+  const body = {};
+  log("POST " + url);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + accessToken,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
     },
     body: JSON.stringify(body)
   });
-  const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error("Create failed "+res.status+": "+JSON.stringify(data));
-  return data; // expect { id, webUrl? ... }
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error("Create failed " + res.status + ": " + JSON.stringify(data));
+  return data;
 }
 
 async function getFormById(accessToken, params, formId){
-  // Try direct GET by id first; if not available, fallback to list
   const byIdUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms/${encodeURIComponent(formId)}`;
-  log("GET "+byIdUrl);
-  let res = await fetch(byIdUrl,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
+  log("GET " + byIdUrl);
+  let res = await fetch(byIdUrl, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
   if(res.ok){
     return await res.json();
   }
-  // Fallback to list and match
   const listUrl = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
-  log("GET "+listUrl+" (fallback)");
-  res = await fetch(listUrl,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
+  log("GET " + listUrl + " (fallback)");
+  res = await fetch(listUrl, { headers: { "Authorization": "Bearer " + accessToken, "Accept": "application/json" } });
   if(!res.ok) return null;
   const json = await res.json();
-  const hit = Array.isArray(json?.results) ? json.results.find(x=>x.id===formId) : null;
+  const hit = Array.isArray(json?.results) ? json.results.find(x => x.id === formId) : null;
   return hit || null;
 }
 
 function resetFlow(){
   sessionStorage.clear();
-  const clean = CONFIG.redirectUri + "?project_id="+encodeURIComponent(projectId)+"&template_id="+encodeURIComponent(templateId)+"&ts="+Date.now();
+  const clean = CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId) + "&ts=" + Date.now();
   window.location = clean;
 }
 
@@ -212,8 +208,8 @@ async function main(){
 
     if(targetUrl){
       ui.status.textContent="Redirecting to ACC…";
-      history.replaceState({}, "", CONFIG.redirectUri + "?project_id="+encodeURIComponent(projectId)+"&template_id="+encodeURIComponent(templateId));
-      window.location = targetUrl; // navigate to the created form
+      history.replaceState({}, "", CONFIG.redirectUri + "?project_id=" + encodeURIComponent(projectId) + "&template_id=" + encodeURIComponent(templateId));
+      window.location = targetUrl;
     }else{
       ui.status.textContent="Form created. Could not resolve webUrl.";
       log({created});
