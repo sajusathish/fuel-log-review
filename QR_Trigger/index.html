@@ -25,9 +25,12 @@
 
 <script>
 const CONFIG = {
-  clientId: "NbT4Ri9gKKGNXHNCBzQF3pdk2r8PzNqhNjqb0Ak7rhBWGvb0",
-  redirectUri: window.location.origin + window.location.pathname,
-  scopes: "data:read data:write account:read ",
+  clientId: "PASTE_YOUR_APS_CLIENT_ID_HERE",
+  // Use the folder URL with a trailing slash. Register this exact URL in APS.
+  redirectUri: "https://sajusathish.github.io/fuel-log-review/QR_Trigger/",
+  // Add data:create and project:read
+  scopes: "data:read data:write data:create project:read account:read",
+  // You can keep these defaults so QR links can be short
   defaultProjectId: "f94d12c8-f951-45a5-b1c3-8419a37750fb",
   defaultTemplateId: "904f2c31-f161-4f91-a20a-774e0df6d933"
 };
@@ -118,16 +121,15 @@ async function createForm(accessToken, params){
       "Content-Type":"application/json",
       "Accept":"application/json"
     },
-    body: JSON.stringify(body) // JSON body required even if {}
+    body: JSON.stringify(body)
   });
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error("Create failed "+res.status+": "+JSON.stringify(data));
-  return data; // expect { id, webUrl? ... }
+  return data; // { id, webUrl? ... }
 }
 
 async function getFormDetail(accessToken, params, formId){
   const url = `${API_BASE}/projects/${encodeURIComponent(params.projectId)}/forms`;
-  // If a direct GET by id is not available in your tenant, list and find by id.
   log("GET "+url+" (resolve webUrl)");
   const res = await fetch(url,{ headers:{ "Authorization":"Bearer "+accessToken, "Accept":"application/json" } });
   if(!res.ok) return null;
@@ -183,7 +185,3 @@ main();
 </script>
 </body>
 </html>
-
-
-
-
