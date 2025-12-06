@@ -227,7 +227,26 @@
     }
 
     let table;
-    let lastSnapshot = null;  // raw HTML snapshot from last successful refresh
+
+    // Create a stable snapshot string from a data array
+    // This is what we compare BEFORE vs AFTER refresh
+    function getDataSnapshot(data){
+      if(!data || !data.length) return "EMPTY";
+
+      // sort rows by Form ID + JSON as a simple, deterministic snapshot
+      const norm = data.map(row => {
+        const keys = Object.keys(row).sort();
+        const out = {};
+        keys.forEach(k => { out[k] = row[k]; });
+        return out;
+      }).sort((a,b) => {
+        const aId = (a["Form ID"] || "").toString();
+        const bId = (b["Form ID"] || "").toString();
+        return aId.localeCompare(bId);
+      });
+
+      return JSON.stringify(norm);
+    }
 
     // Initial data from query string
     const dataEncoded = params.get('data');
@@ -388,6 +407,10 @@
 
     async function refreshTable(){
       const statusText = document.getElementById("statusText");
+
+      // Snapshot of what the user is currently seeing
+      const beforeSnapshot = table ? getDataSnapshot(table.getData()) : "EMPTY";
+
       statusText.textContent = "Triggering refresh...";
       statusText.insertAdjacentHTML("beforeend", '<span class="loader"></span>');
       toggleButtonsDisabled(true);
@@ -408,19 +431,18 @@
 
         let retries = 6; // 6 x 5s = 30 seconds max
         let updated = false;
-        let latestHtml = null;
 
         while(retries-- > 0){
           await new Promise(r => setTimeout(r, 5000));
 
           try{
-            latestHtml = await fetchRawFileContent();
+            const latestHtml = await fetchRawFileContent();
+            const doc = new DOMParser().parseFromString(latestHtml, "text/html");
+            const headers = Array.from(doc.querySelectorAll("thead th")).map(th => th.textContent.trim());
+            const newData = parseTableHTMLtoData(latestHtml, headers);
+            const afterSnapshot = getDataSnapshot(newData);
 
-            // First time we ever read the file, or it changed compared to last snapshot
-            if(!lastSnapshot || latestHtml !== lastSnapshot){
-              const doc = new DOMParser().parseFromString(latestHtml, "text/html");
-              const headers = Array.from(doc.querySelectorAll("thead th")).map(th => th.textContent.trim());
-              const newData = parseTableHTMLtoData(latestHtml, headers);
+            if(afterSnapshot !== beforeSnapshot){
               const columns = getColumnsFromHeaders(headers);
 
               if(table){
@@ -441,7 +463,6 @@
                 });
               }
 
-              lastSnapshot = latestHtml;
               updated = true;
               break;
             }
@@ -457,7 +478,6 @@
         if(updated){
           statusText.textContent = `✅ Table refreshed! (Last Update: ${timeString})`;
         }else{
-          // Snapshot never changed within the polling window
           statusText.textContent = `⚠️ No updates found (already up to date). Last check: ${timeString}`;
         }
 
