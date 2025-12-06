@@ -47,7 +47,7 @@
     button.approve{ background:var(--ok); }   button.approve:hover:not(:disabled){ background:#1e8449; }
     button.reject{ background:var(--danger); } button.reject:hover:not(:disabled){ background:#922b21; }
 
-    #statusText{ margin:0 0 6px; font-weight:600; color:#34495e; user-select:none; min-height:24px; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; }
+    #statusText{ margin:0 0 6px; font-weight:600; color:#34495e; user-select:none; min-height:24px; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; text-align:center; }
     .loader{ display:inline-block; width:18px; height:18px; border:3px solid rgba(0,0,0,.2); border-top:3px solid #34495e; border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
 
@@ -151,7 +151,7 @@
       }
     }
 
-    // Parse HTML table to row objects, capturing Form URL from the Form Number link
+    // Parse HTML table into row objects (capture URL from Form Number link)
     function parseTableHTMLtoData(html, headers){
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
@@ -182,7 +182,7 @@
       });
     }
 
-    // Build Tabulator columns, rendering Form Number as clickable link
+    // Build Tabulator columns
     function getColumnsFromHeaders(headers){
       const filtered = headers.filter(h => h.toLowerCase() !== 'select');
 
@@ -226,29 +226,19 @@
       }));
     }
 
-    let table;
-
-    // Create a stable snapshot string from a data array
-    // This is what we compare BEFORE vs AFTER refresh
-    function getDataSnapshot(data){
-      if(!data || !data.length) return "EMPTY";
-
-      // sort rows by Form ID + JSON as a simple, deterministic snapshot
-      const norm = data.map(row => {
-        const keys = Object.keys(row).sort();
-        const out = {};
-        keys.forEach(k => { out[k] = row[k]; });
-        return out;
-      }).sort((a,b) => {
-        const aId = (a["Form ID"] || "").toString();
-        const bId = (b["Form ID"] || "").toString();
-        return aId.localeCompare(bId);
+    // Normalized snapshot helper (full row comparison, not just Form ID)
+    function buildSnapshot(rows){
+      // sort keys inside each row, then stringify full list
+      const normalized = rows.map(r => {
+        const entries = Object.entries(r).sort(([a],[b]) => a.localeCompare(b));
+        return Object.fromEntries(entries);
       });
-
-      return JSON.stringify(norm);
+      return JSON.stringify(normalized);
     }
 
-    // Initial data from query string
+    let table;
+
+    // Initial data from URL param
     const dataEncoded = params.get('data');
     if(dataEncoded){
       const tableHTML = base64UrlDecode(dataEncoded);
@@ -269,19 +259,16 @@
             selectableCheck: () => true,
             rowClick: false,
             pagination: false,
-            initialSort: [{ column: columns[1].field, dir: "asc" }]
+            initialSort: columns[1] ? [{ column: columns[1].field, dir: "asc" }] : []
           });
-        }else{
-          document.getElementById("fuel-log-table").innerHTML =
-            "<p style='color:red;text-align:center;'>No table found in data.</p>";
+        } else {
+          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>No table found in data.</p>";
         }
-      }else{
-        document.getElementById("fuel-log-table").innerHTML =
-          "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
+      } else {
+        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
       }
-    }else{
-      document.getElementById("fuel-log-table").innerHTML =
-        "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
+    } else {
+      document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
     }
 
     function getSelectedFormIds(){
@@ -301,24 +288,15 @@
     async function handleDecision(status, extraParams = {}){
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
-      if(!formIds){
-        alert("Please select at least one form.");
-        return;
-      }
-
+      if(!formIds){ alert("Please select at least one form."); return; }
       const base = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response";
       const qs = new URLSearchParams({ status, Reviewer: reviewer, Form_Ids: formIds, ...extraParams });
       const webhookUrl = `${base}?${qs.toString()}`;
-
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
-
       try{
         const response = await fetch(webhookUrl, { method:'GET' });
-        if(!response.ok){
-          const err = await response.text();
-          throw new Error(`Webhook call failed: ${err}`);
-        }
+        if(!response.ok){ const err = await response.text(); throw new Error(`Webhook call failed: ${err}`); }
         statusText.textContent = `✅ ${status} sent successfully!`;
       }catch(e){
         statusText.textContent = `❌ Error: ${e.message}`;
@@ -329,7 +307,7 @@
 
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
-    // Reject modal behaviour
+    // Reject modal wiring
     const overlay = document.getElementById("rejectOverlay");
     const modal = document.getElementById("rejectModal");
     const reasonEl = document.getElementById("rejectReason");
@@ -341,10 +319,7 @@
 
     function openRejectModal(){
       const formIds = getSelectedFormIds();
-      if(!formIds){
-        alert("Please select at least one form.");
-        return;
-      }
+      if(!formIds){ alert("Please select at least one form."); return; }
       const selectedCount = formIds.split(",").filter(Boolean).length;
       countEl.textContent = `${selectedCount} selected`;
       reasonEl.value = "";
@@ -372,17 +347,14 @@
 
     confirmBtn.addEventListener("click", async () => {
       const reason = reasonEl.value.trim();
-      if (!reason) {
-        errEl.style.display = "block";
-        reasonEl.focus();
-        return;
-      }
+      if (!reason) { errEl.style.display = "block"; reasonEl.focus(); return; }
       closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
     });
 
     document.getElementById("rejectBtn").onclick = openRejectModal;
 
+    // Fetch HTML from GitHub (raw view)
     async function fetchRawFileContent(){
       const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
       const resp = await fetch(url, {cache:'no-store'});
@@ -392,31 +364,17 @@
       return txt;
     }
 
-    function formatHSTTime(dateObj){
-      return dateObj.toLocaleString("en-US", {
-        timeZone:"Pacific/Honolulu",
-        year:"numeric",
-        month:"short",
-        day:"numeric",
-        hour:"2-digit",
-        minute:"2-digit",
-        second:"2-digit",
-        timeZoneName:"short"
-      });
-    }
-
     async function refreshTable(){
       const statusText = document.getElementById("statusText");
-
-      // Snapshot of what the user is currently seeing
-      const beforeSnapshot = table ? getDataSnapshot(table.getData()) : "EMPTY";
-
-      statusText.textContent = "Triggering refresh...";
-      statusText.insertAdjacentHTML("beforeend", '<span class="loader"></span>');
+      statusText.textContent = `Triggering refresh...`;
+      statusText.insertAdjacentHTML('beforeend',' <span class="loader"></span>');
       toggleButtonsDisabled(true);
 
+      // Snapshot of CURRENT UI rows (full row data)
+      const currentRows = table ? table.getData() : [];
+      const currentSnapshot = buildSnapshot(currentRows);
+
       try{
-        // Trigger Workato to regenerate RefreshedData
         const webhookResp = await fetch(
           "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable",
           { method:"GET", cache:"no-store" }
@@ -426,59 +384,69 @@
           throw new Error(`Webhook trigger failed: ${errTxt}`);
         }
 
-        statusText.textContent = "Polling for updates...";
-        statusText.insertAdjacentHTML("beforeend", '<span class="loader"></span>');
+        statusText.textContent = `Waiting for latest data from GitHub...`;
+        statusText.insertAdjacentHTML('beforeend',' <span class="loader"></span>');
 
-        let retries = 6; // 6 x 5s = 30 seconds max
+        // Wait up to ~90s (18 × 5s) for Workato + GitHub to finish
+        let retries = 18;
         let updated = false;
 
         while(retries-- > 0){
           await new Promise(r => setTimeout(r, 5000));
 
           try{
-            const latestHtml = await fetchRawFileContent();
-            const doc = new DOMParser().parseFromString(latestHtml, "text/html");
+            const newTableHTML = await fetchRawFileContent();
+            const doc = new DOMParser().parseFromString(newTableHTML, "text/html");
             const headers = Array.from(doc.querySelectorAll("thead th")).map(th => th.textContent.trim());
-            const newData = parseTableHTMLtoData(latestHtml, headers);
-            const afterSnapshot = getDataSnapshot(newData);
+            const newData = parseTableHTMLtoData(newTableHTML, headers);
 
-            if(afterSnapshot !== beforeSnapshot){
+            const newSnapshot = buildSnapshot(newData);
+
+            // If ANY cell value differs, snapshots will differ
+            if(newSnapshot !== currentSnapshot){
               const columns = getColumnsFromHeaders(headers);
-
               if(table){
                 table.setColumns(columns);
                 table.replaceData(newData);
               }else{
                 table = new Tabulator("#fuel-log-table", {
-                  data:newData,
-                  layout:"fitDataStretch",
-                  movableColumns:true,
-                  resizableColumns:true,
-                  columns:columns,
-                  selectable:true,
-                  selectableCheck:() => true,
-                  rowClick:false,
-                  pagination:false,
-                  initialSort: [{ column: columns[1].field, dir: "asc" }]
+                  data: newData,
+                  layout: "fitDataStretch",
+                  movableColumns: true,
+                  resizableColumns: true,
+                  columns: columns,
+                  selectable: true,
+                  selectableCheck: () => true,
+                  rowClick: false,
+                  pagination: false
                 });
               }
 
+              const timeString = new Date().toLocaleString("en-US", {
+                timeZone:"Pacific/Honolulu",
+                year:'numeric', month:'short', day:'numeric',
+                hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
+              });
+              statusText.textContent = `✅ Table refreshed with latest data. Last Update: ${timeString}`;
               updated = true;
               break;
             }
-          }catch(errInner){
-            statusText.textContent = `❌ Error fetching update: ${errInner.message}`;
+
+          }catch(innerErr){
+            statusText.textContent = `❌ Error fetching update: ${innerErr.message}`;
             toggleButtonsDisabled(false);
             return;
           }
         }
 
-        const timeString = formatHSTTime(new Date());
-
-        if(updated){
-          statusText.textContent = `✅ Table refreshed! (Last Update: ${timeString})`;
-        }else{
-          statusText.textContent = `⚠️ No updates found (already up to date). Last check: ${timeString}`;
+        if(!updated){
+          const finalTime = new Date().toLocaleString("en-US", {
+            timeZone:"Pacific/Honolulu",
+            year:'numeric', month:'short', day:'numeric',
+            hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
+          });
+          statusText.textContent =
+            `⚠️ No updates detected in the last 90 seconds (data looks the same as what is on screen). Last check: ${finalTime}`;
         }
 
       }catch(e){
