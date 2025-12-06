@@ -44,33 +44,119 @@
     }
     button:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 10px 18px rgba(0,0,0,.16); }
     button:disabled{ cursor:not-allowed; opacity:.6; box-shadow:none; transform:none; }
-    button.approve{ background:var(--ok); }   button.approve:hover:not(:disabled){ background:#1e8449; }
-    button.reject{ background:var(--danger); } button.reject:hover:not(:disabled){ background:#922b21; }
+    button.approve{ background:var(--ok); }
+    button.approve:hover:not(:disabled){ background:#1e8449; }
+    button.reject{ background:var(--danger); }
+    button.reject:hover:not(:disabled){ background:#922b21; }
 
-    #statusText{ margin:0 0 6px; font-weight:600; color:#34495e; user-select:none; min-height:24px; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; }
-    .loader{ display:inline-block; width:18px; height:18px; border:3px solid rgba(0,0,0,.2); border-top:3px solid #34495e; border-radius:50%; animation:spin .8s linear infinite; }
+    #statusText{
+      margin:0 0 6px;
+      font-weight:600;
+      color:#34495e;
+      user-select:none;
+      min-height:24px;
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:8px;
+      text-align:center;
+    }
+
+    .loader{
+      display:inline-block;
+      width:18px;
+      height:18px;
+      border:3px solid rgba(0,0,0,.2);
+      border-top:3px solid #34495e;
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
     @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
 
-    .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999; }
-    .modal{
-      width:min(560px,92vw); background:#fff; border-radius:12px; box-shadow:0 18px 40px rgba(0,0,0,.25);
-      overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; outline:none;
+    .modal-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
     }
-    .modal-header{ display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid #eef2f7; background:#fbfbfd; }
-    .modal-icon{ width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; background:#fdecea; color:var(--danger); font-size:18px; }
+    .modal{
+      width:min(560px,92vw);
+      background:#fff;
+      border-radius:12px;
+      box-shadow:0 18px 40px rgba(0,0,0,.25);
+      overflow:hidden;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      outline:none;
+    }
+    .modal-header{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:16px 18px;
+      border-bottom:1px solid #eef2f7;
+      background:#fbfbfd;
+    }
+    .modal-icon{
+      width:28px;
+      height:28px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:6px;
+      background:#fdecea;
+      color:var(--danger);
+      font-size:18px;
+    }
     .modal-title{ font-size:18px; font-weight:800; color:var(--ink); margin:0; }
     .modal-body{ padding:16px 18px; display:grid; gap:12px; }
     .modal-help{ font-size:14px; color:var(--muted); }
-    .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#2c3e50; background:#ecf5ff; border:1px solid #d6ebff; padding:4px 8px; border-radius:999px; width:max-content; }
-    .modal textarea{
-      width:100%; min-height:110px; border:1px solid #dce3ec; border-radius:10px; padding:10px 12px;
-      font-family:inherit; font-size:14px; resize:vertical; outline:none; box-sizing:border-box; margin:0;
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:#2c3e50;
+      background:#ecf5ff;
+      border:1px solid #d6ebff;
+      padding:4px 8px;
+      border-radius:999px;
+      width:max-content;
     }
-    .modal textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 3px var(--ring); }
+    .modal textarea{
+      width:100%;
+      min-height:110px;
+      border:1px solid #dce3ec;
+      border-radius:10px;
+      padding:10px 12px;
+      font-family:inherit;
+      font-size:14px;
+      resize:vertical;
+      outline:none;
+      box-sizing:border-box;
+      margin:0;
+    }
+    .modal textarea:focus{
+      border-color:var(--brand);
+      box-shadow:0 0 0 3px var(--ring);
+    }
     .char-hint{ font-size:12px; color:#7b8a97; text-align:right; margin-top:4px; padding-right:2px; }
-    .modal-footer{ display:flex; justify-content:flex-end; gap:10px; padding:14px 18px; border-top:1px solid #eef2f7; background:#fbfbfd; }
-    .btn-secondary{ background:#eef2f7; color:#2c3e50; } .btn-secondary:hover{ background:#e3e8ef; }
-    .btn-danger{ background:var(--danger); color:#fff; } .btn-danger:hover{ background:#922b21; }
+    .modal-footer{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 18px;
+      border-top:1px solid #eef2f7;
+      background:#fbfbfd;
+    }
+    .btn-secondary{ background:#eef2f7; color:#2c3e50; }
+    .btn-secondary:hover{ background:#e3e8ef; }
+    .btn-danger{ background:var(--danger); color:#fff; }
+    .btn-danger:hover{ background:#922b21; }
 
     .tabulator{ border:none; }
     .tabulator-header{ border-bottom:1px solid var(--line); }
@@ -82,7 +168,12 @@
 <body>
   <div class="page-wrap">
     <div id="greeting" class="greeting">Hello</div>
-    <p id="subtext" class="subtext">Review fuel logs. Select rows, then approve or reject forms. <span id="Darktext">Its a good practice to refresh the table before approving or rejecting to avoid working on a outdated database.</span></p>
+    <p id="subtext" class="subtext">
+      Review fuel logs. Select rows, then approve or reject forms.
+      <span id="Darktext">
+        Its a good practice to refresh the table before approving or rejecting to avoid working on a outdated database.
+      </span>
+    </p>
 
     <div class="date-title">
       <span id="titleText">Daily fuel log review</span>
@@ -127,30 +218,33 @@
     document.getElementById("todayDate").textContent = new Date().toISOString().split("T")[0];
 
     const params = new URLSearchParams(window.location.search);
-    const reviewer = params.get('reviewer') || 'unknown@domain.com';
+    const reviewer = params.get("reviewer") || "unknown@domain.com";
 
     function nameFromEmail(mail){
-      const local = (mail || '').split('@')[0] || '';
-      if(!local) return 'Reviewer';
+      const local = (mail || "").split("@")[0] || "";
+      if (!local) return "Reviewer";
       return local.charAt(0).toUpperCase() + local.slice(1);
     }
-    document.getElementById('greeting').textContent = `Hello ${nameFromEmail(reviewer)}`;
-    document.getElementById('titleText').textContent = 'Daily fuel log review';
+    document.getElementById("greeting").textContent = `Hello ${nameFromEmail(reviewer)}`;
+    document.getElementById("titleText").textContent = "Daily fuel log review";
 
     function base64UrlDecode(input){
       try{
-        const base64 = input.replace(/-/g,'+').replace(/_/g,'/');
+        const base64 = input.replace(/-/g,"+").replace(/_/g,"/");
         const decoded = atob(base64);
         return decodeURIComponent(escape(decoded));
-      }catch(e){ console.error("Decode error", e); return null; }
+      }catch(e){
+        console.error("Decode error", e);
+        return null;
+      }
     }
 
-    // UPDATED: capture link href from "Form Number" cell
+    // Parse HTML table into array of objects and also capture link for Form Number
     function parseTableHTMLtoData(html, headers){
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
       const table = doc.querySelector("table");
-      if(!table) return [];
+      if (!table) return [];
       const formNumberIdx = headers.findIndex(h => /^form number$/i.test(h));
       const rows = Array.from(table.querySelectorAll("tbody tr"));
       return rows.map(row => {
@@ -158,9 +252,9 @@
         const obj = {};
         cells.forEach((cell, i) => {
           const key = headers[i] || `col${i}`;
-          if(i === formNumberIdx){
+          if (i === formNumberIdx){
             const a = cell.querySelector("a");
-            if(a){
+            if (a){
               obj[key] = (a.textContent || "").trim();
               obj["Form URL"] = a.getAttribute("href") || "";
             }else{
@@ -174,13 +268,18 @@
       });
     }
 
-    // UPDATED: render "Form Number" as a clickable link using the stored Form URL
+    // Build Tabulator columns from headers, keeping Form ID hidden and Form Number clickable
     function getColumnsFromHeaders(headers){
-      const filtered = headers.filter(h => h.toLowerCase() !== 'select');
+      const filtered = headers.filter(h => h.toLowerCase() !== "select");
       return [{
-        formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, width:50, frozen:true
+        formatter:"rowSelection",
+        titleFormatter:"rowSelection",
+        hozAlign:"center",
+        headerSort:false,
+        width:50,
+        frozen:true
       }].concat(filtered.map(h => {
-        if(/^form number$/i.test(h)){
+        if (/^form number$/i.test(h)){
           return {
             title:h,
             field:h,
@@ -192,7 +291,7 @@
             formatter:function(cell){
               const url = cell.getRow().getData()["Form URL"];
               const label = cell.getValue();
-              if(url){
+              if (url){
                 return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
               }
               return label || "";
@@ -200,49 +299,61 @@
           };
         }
         return {
-          title:h, field:h, headerFilter:"input", headerSort:true, resizable:true, hozAlign:"left", tooltip:true,
+          title:h,
+          field:h,
+          headerFilter:"input",
+          headerSort:true,
+          resizable:true,
+          hozAlign:"left",
+          tooltip:true,
           visible: h === "Form ID" ? false : true
         };
       }));
     }
 
     let table;
-    const dataEncoded = params.get('data');
-    if(dataEncoded){
+
+    // Initial data from query string if present
+    const dataEncoded = params.get("data");
+    if (dataEncoded){
       const tableHTML = base64UrlDecode(dataEncoded);
-      if(tableHTML){
+      if (tableHTML){
         const doc = new DOMParser().parseFromString(tableHTML, "text/html");
         const tableElement = doc.querySelector("table");
-        if(tableElement){
-          const headers = Array.from(tableElement.querySelectorAll("thead th")).map(th => th.textContent.trim());
+        if (tableElement){
+          const headers = Array.from(tableElement.querySelectorAll("thead th"))
+                               .map(th => th.textContent.trim());
           const tableData = parseTableHTMLtoData(tableHTML, headers);
           const columns = getColumnsFromHeaders(headers);
           table = new Tabulator("#fuel-log-table", {
             data: tableData,
-            layout: "fitDataStretch",
-            movableColumns: true,
-            resizableColumns: true,
-            columns: columns,
-            selectable: true,
+            layout:"fitDataStretch",
+            movableColumns:true,
+            resizableColumns:true,
+            columns:columns,
+            selectable:true,
             selectableCheck: () => true,
-            rowClick: false,
-            pagination: false,
-            initialSort: [{ column: columns[1].field, dir: "asc" }]
+            rowClick:false,
+            pagination:false,
+            initialSort: [{ column: columns[1].field, dir:"asc" }]
           });
-        } else {
-          document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>No table found in data.</p>";
+        }else{
+          document.getElementById("fuel-log-table").innerHTML =
+            "<p style='color:red;text-align:center;'>No table found in data.</p>";
         }
-      } else {
-        document.getElementById("fuel-log-table").innerHTML = "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
+      }else{
+        document.getElementById("fuel-log-table").innerHTML =
+          "<p style='color:red;text-align:center;'>Failed to decode data.</p>";
       }
-    } else {
-      document.getElementById("fuel-log-table").innerHTML = "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
+    }else{
+      document.getElementById("fuel-log-table").innerHTML =
+        "<p style='color:gray;text-align:center;'>No initial data provided.</p>";
     }
 
     function getSelectedFormIds(){
       const selected = table.getSelectedData();
-      if(!selected.length) return "";
-      if("Form ID" in selected[0]) return selected.map(r => r["Form ID"]).join(",");
+      if (!selected.length) return "";
+      if ("Form ID" in selected[0]) return selected.map(r => r["Form ID"]).join(",");
       const keys = Object.keys(selected[0]);
       return selected.map(r => r[keys[0]]).join(",");
     }
@@ -256,15 +367,21 @@
     async function handleDecision(status, extraParams = {}){
       const formIds = getSelectedFormIds();
       const statusText = document.getElementById("statusText");
-      if(!formIds){ alert("Please select at least one form."); return; }
+      if (!formIds){
+        alert("Please select at least one form.");
+        return;
+      }
       const base = "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/fuel-log-response";
       const qs = new URLSearchParams({ status, Reviewer: reviewer, Form_Ids: formIds, ...extraParams });
       const webhookUrl = `${base}?${qs.toString()}`;
       statusText.textContent = `Submitting ${status}...`;
       toggleButtonsDisabled(true);
       try{
-        const response = await fetch(webhookUrl, { method:'GET' });
-        if(!response.ok){ const err = await response.text(); throw new Error(`Webhook call failed: ${err}`); }
+        const response = await fetch(webhookUrl, { method:"GET" });
+        if (!response.ok){
+          const err = await response.text();
+          throw new Error(`Webhook call failed: ${err}`);
+        }
         statusText.textContent = `✅ ${status} sent successfully!`;
       }catch(e){
         statusText.textContent = `❌ Error: ${e.message}`;
@@ -275,6 +392,7 @@
 
     document.getElementById("approveBtn").onclick = () => handleDecision("Approved");
 
+    // Reject modal logic
     const overlay = document.getElementById("rejectOverlay");
     const modal = document.getElementById("rejectModal");
     const reasonEl = document.getElementById("rejectReason");
@@ -286,90 +404,150 @@
 
     function openRejectModal(){
       const formIds = getSelectedFormIds();
-      if(!formIds){ alert("Please select at least one form."); return; }
+      if (!formIds){
+        alert("Please select at least one form.");
+        return;
+      }
       const selectedCount = formIds.split(",").filter(Boolean).length;
       countEl.textContent = `${selectedCount} selected`;
-      reasonEl.value = ""; if(charsEl) charsEl.textContent = "0"; errEl.style.display = "none";
-      overlay.style.display = "flex"; overlay.setAttribute("aria-hidden","false"); modal.focus();
+      reasonEl.value = "";
+      if (charsEl) charsEl.textContent = "0";
+      errEl.style.display = "none";
+      overlay.style.display = "flex";
+      overlay.setAttribute("aria-hidden","false");
+      modal.focus();
     }
-    function closeRejectModal(){ overlay.style.display = "none"; overlay.setAttribute("aria-hidden","true"); }
+    function closeRejectModal(){
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden","true");
+    }
 
     reasonEl.addEventListener("input", () => {
       const max = 500;
       if (reasonEl.value.length > max) reasonEl.value = reasonEl.value.slice(0, max);
-      if(charsEl) charsEl.textContent = String(reasonEl.value.length);
+      if (charsEl) charsEl.textContent = String(reasonEl.value.length);
       if (reasonEl.value.trim().length > 0) errEl.style.display = "none";
     });
 
-    overlay.addEventListener("click", e => { if (e.target === overlay) closeRejectModal(); });
-    document.addEventListener("keydown", e => { if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal(); });
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) closeRejectModal();
+    });
+    document.addEventListener("keydown", e => {
+      if (overlay.style.display === "flex" && e.key === "Escape") closeRejectModal();
+    });
     cancelBtn.addEventListener("click", closeRejectModal);
 
     confirmBtn.addEventListener("click", async () => {
       const reason = reasonEl.value.trim();
-      if (!reason) { errEl.style.display = "block"; reasonEl.focus(); return; }
+      if (!reason){
+        errEl.style.display = "block";
+        reasonEl.focus();
+        return;
+      }
       closeRejectModal();
       await handleDecision("Rejected", { Rejection_Reason: reason });
     });
 
     document.getElementById("rejectBtn").onclick = openRejectModal;
 
+    // Fetch latest RefreshedData from GitHub raw
     async function fetchRawFileContent(){
       const url = `https://raw.githubusercontent.com/sajusathish/fuel-log-review/main/RefreshedData?t=${Date.now()}`;
-      const resp = await fetch(url, {cache:'no-store'});
-      if(!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+      const resp = await fetch(url, { cache:"no-store" });
+      if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
       const txt = await resp.text();
-      if(txt.trim().length < 10) throw new Error("Refreshed data too short");
+      if (txt.trim().length < 10) throw new Error("Refreshed data too short");
       return txt;
+    }
+
+    // Helper snapshot so any value change (including time) is detected
+    function snapshotData(data){
+      try{
+        return JSON.stringify(data);
+      }catch(e){
+        console.error("Snapshot error", e);
+        return "";
+      }
     }
 
     async function refreshTable(){
       const statusText = document.getElementById("statusText");
-      statusText.textContent = `Triggering refresh...`;
-      statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
+      statusText.textContent = "Triggering refresh...";
+      statusText.insertAdjacentHTML("beforeend","<span class=\"loader\"></span>");
       toggleButtonsDisabled(true);
+
+      // Take snapshot of current data
+      const currentData = table ? table.getData() : [];
+      const currentSnapshot = snapshotData(currentData);
+
       try{
-        const webhookResp = await fetch("https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable", { method:"GET", cache:"no-store" });
-        if(!webhookResp.ok){ const errTxt = await webhookResp.text(); throw new Error(`Webhook trigger failed: ${errTxt}`); }
-        statusText.textContent = `Polling for updates...`;
-        statusText.insertAdjacentHTML('beforeend','<span class="loader"></span>');
-        const getFormIds = (data) => data.map(r => r["Form ID"]).sort();
-        const currentFormIds = getFormIds(table.getData());
+        // Step 1: trigger Workato recipe to regenerate RefreshedData
+        const webhookResp = await fetch(
+          "https://webhooks.workato.com/webhooks/rest/b7ed69d5-2da6-44d3-befd-c64b497884e8/refreshtable",
+          { method:"GET", cache:"no-store" }
+        );
+        if (!webhookResp.ok){
+          const errTxt = await webhookResp.text();
+          throw new Error(`Webhook trigger failed: ${errTxt}`);
+        }
+
+        // Step 2: poll GitHub up to 3 times for updated file
+        statusText.textContent = "Polling for updates...";
+        statusText.insertAdjacentHTML("beforeend","<span class=\"loader\"></span>");
+
         let retries = 3;
-        while(retries-- > 0){
-          await new Promise(r => setTimeout(r, 5000));
+        while (retries-- > 0){
+          await new Promise(r => setTimeout(r, 5000)); // wait 5 seconds
+
           try{
             const newTableHTML = await fetchRawFileContent();
             const doc = new DOMParser().parseFromString(newTableHTML, "text/html");
-            const headers = Array.from(doc.querySelectorAll("thead th")).map(th => th.textContent.trim());
+            const headers = Array.from(doc.querySelectorAll("thead th"))
+                                 .map(th => th.textContent.trim());
             const newData = parseTableHTMLtoData(newTableHTML, headers);
-            const newFormIds = getFormIds(newData);
-            const hasChanged = newFormIds.length !== currentFormIds.length || newFormIds.some((id, i) => id !== currentFormIds[i]);
+            const newSnapshot = snapshotData(newData);
+
             const timeString = new Date().toLocaleString("en-US", {
-              timeZone:"Pacific/Honolulu", year:'numeric', month:'short', day:'numeric',
-              hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
+              timeZone:"Pacific/Honolulu",
+              year:"numeric",
+              month:"short",
+              day:"numeric",
+              hour:"2-digit",
+              minute:"2-digit",
+              second:"2-digit",
+              timeZoneName:"short"
             });
-            if(hasChanged){
+
+            if (newSnapshot !== currentSnapshot){
+              // Data changed in some way (new rows or any field update)
+              if (headers.length){
+                const columns = getColumnsFromHeaders(headers);
+                table.setColumns(columns);
+              }
               table.replaceData(newData);
               statusText.textContent = `✅ Table refreshed! (Last Update: ${timeString})`;
-              toggleButtonsDisabled(false); return;
+              toggleButtonsDisabled(false);
+              return;
+            }else if (retries <= 0){
+              statusText.textContent = `⚠️ No updates found! (Last Update: ${timeString})`;
+              toggleButtonsDisabled(false);
+              return;
             }
           }catch(err){
-            statusText.textContent = `❌ Error fetching update: ${err.message}`;
-            toggleButtonsDisabled(false); return;
+            if (retries <= 0){
+              statusText.textContent = `❌ Error fetching update: ${err.message}`;
+              toggleButtonsDisabled(false);
+              return;
+            }
           }
         }
-        const finalTime = new Date().toLocaleString("en-US", {
-          timeZone:"Pacific/Honolulu", year:'numeric', month:'short', day:'numeric',
-          hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
-        });
-        statusText.textContent = `⚠️ No updates found! (Last Update: ${finalTime})`;
       }catch(e){
         statusText.textContent = `❌ Refresh failed: ${e.message}`;
       }finally{
         toggleButtonsDisabled(false);
       }
     }
+
     document.getElementById("refreshBtn").onclick = refreshTable;
   </script>
 </body>
